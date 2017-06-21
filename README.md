@@ -1,7 +1,5 @@
-# espLightServerRGB
-A simple esp8266 LED strip wifi enabled controler with temperature sensor and thingspeak
-
-uses thingspeak for temperature data logging from a (ky-001) sensor
+# espLightServer
+A simple esp8266 LED light wifi enabled controler
 
 This code requires the following dependencies :
 WifiManager by tzapu
