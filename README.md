@@ -11,10 +11,15 @@ At first run it goes in wifi server mode, you use your phone or pc to connect to
 and the set it up for your home wifi configuration. then you connect to it's ip to turn on or off the LED (pin D7 on nodemcu v1)
 
 it has four basic pages:
+
 "/" for controling the LED strip color
+
 "/temp" for temperature information
+
 "/version" for version information
+
 "/reset" to remove your wifi credetials from flash memory and reboot in wifi server mode
+
 "/anythingelse" a basic 404 not found page
 
 Any input are welcome !
