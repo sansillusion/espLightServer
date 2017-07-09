@@ -182,11 +182,7 @@ void handleFlash() {
   Serial.print("Fois - ");
   Serial.println(flashfois / 2);
   if (testteu != 0) {
-    if ( (flashfois % 2) == 0) {
-      derncoul = testteu;
-    } else {
-      derncoul = "#000000";
-    }
+    derncoul = testteu;
     long number = strtol( &testteu[1], NULL, 16);
     r = number >> 16;
     g = number >> 8 & 0xFF;
@@ -199,6 +195,7 @@ void handleFlash() {
     Serial.println(b);
     dernadd = addy;
     flashoufade = 1;
+    flashrendu = 0;
     ledcWrite(1, 0);
     ledcWrite(2, 0);
     ledcWrite(3, 0);
