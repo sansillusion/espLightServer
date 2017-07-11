@@ -10,8 +10,8 @@
 #include <DallasTemperature.h>
 #include <DHT.h>
 #include <ESPmDNS.h>
-#define ONE_WIRE_BUS 15
-#define DHTPIN 2
+#define ONE_WIRE_BUS 5
+#define DHTPIN 15
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 OneWire oneWire(ONE_WIRE_BUS);
@@ -19,10 +19,9 @@ DallasTemperature sensors(&oneWire);
 // end of sensors
 
 // Settings you should check/change
-String resetpass = "YOURresetPASSWORD"; // password to reset wifimanager when allready connected
-const String thingkey = "YourThingSpeakApiWriteKey"; //your thingspeak API key
+String resetpass = "YourWifiResetPassword"; // password to reset wifimanager when allready connected
+const String thingkey = "YourThingSpeakKey"; //your thingspeak API key
 const String thingchanel = "000000"; //your thingspeak Chanel #
-// other settings you might like to change
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const String liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/289148\">Temp stats</a>\n"; // html/links shown at bottom of pages
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
@@ -204,12 +203,74 @@ void handleFlash() {
     vert = 0;
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
-  contenu += "<meta http-equiv=\"refresh\" content=\"0;url=/\" />\n";
+  contenu += "<meta http-equiv=\"refresh\" content=\"0;url=/party\" />\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere soit</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
   contenu += css;
   contenu += "</head>\n<body>\n"
              "Merci</body></html>\n";
+  server.send(200, "text/html", contenu);
+}
+
+// web page for flash mode
+void handleClignote() {
+  String addy = server.client().remoteIP().toString();
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Page flash");
+  String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
+  contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere flash</title>\n"
+             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
+  contenu += css;
+  contenu += "<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js\"></script>\n";
+  contenu += "</head>\n<body>\n"
+             "<div style=\"text-align:center;width:100%;\">\n"
+             "<form id=\"laforme\" action=\"/flash\" method=\"post\">\n"
+             "<h1>Change la couleur de mon bureau:</h1>"
+             "<input id=\"colorpad\" type=\"color\" name=\"COULEUR\" class=\"color\" value=\"" + derncoul + "\"><br>\n"
+             "Fois: <input id=\"fois\" type=\"number\" name=\"FOIS\" class=\"numbers\"> "
+             "Delais(ms): <input id=\"delais\" type=\"number\" name=\"DELAIS\" class=\"numbers\"><br>\n"
+             "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
+             "</form>\n"
+             "<button onclick=\"disco()\">Hazard</button><br>\n"
+             "<button onclick=\"startDisco()\">Auto Disco</button><br>\n"
+             "Dernier IP &agrave; avoir chang&eacute; la couleur : ";
+  contenu += dernadd;
+  contenu += "<br>\n";
+  contenu += liens;
+  contenu += "<script>\n"
+             "function getRandomColor() {\n"
+             "var letters = '0000F0F1205F9B0F';\n"
+             "var color = '#';\n"
+             "for (var i = 0; i < 6; i++ ) {\n"
+             "    color += letters[Math.floor(Math.random() * 16)];\n"
+             "}\n"
+             "return color;\n"
+             "}\n"
+             "function setRandomColor(){\n"
+             "$(\"#colorpad\").val(getRandomColor());\n"
+             "$(\"#fois\").val(Math.floor(Math.random() * 1000));\n"
+             "$(\"#delais\").val(Math.floor(Math.random() * 1000));\n"
+             "}\n"
+             "$(\"#laforme\").submit(function( event ) {\n"
+             "  event.preventDefault();\n"
+             "$.ajax({\n"
+             "url : $(this).attr('action') || window.location.pathname,\n"
+             "type: \"POST\",\n"
+             "data: $(this).serialize(),\n"
+             "});\n"
+             "});\n"
+             "function disco(){\n"
+             "setRandomColor();\n"
+             "$(\"#laforme\").submit();\n"
+             "}\n"
+             "var myVar = \" \";\n"
+             "function startDisco(){\n"
+             " disco();"
+             " myVar = setInterval(function(){ disco() }, 13500);\n"
+             "}\n"
+             "</script>\n"
+             "</div></body></html>\n";
   server.send(200, "text/html", contenu);
 }
 
@@ -306,7 +367,7 @@ void handleRoot() {
              "var myVar = \" \";\n"
              "function startDisco(){\n"
              " disco();"
-             " myVar = setInterval(function(){ disco() }, 13500);\n"
+             " myVar = setInterval(function(){ disco() }, 18500);\n"
              "}\n"
              "</script>\n"
              "</div></body></html>\n";
@@ -488,6 +549,25 @@ void handleTemp() {
   server.send(200, "text/html", contenu);
 }
 
+int fadecomment(int claire) {
+  int combien = 70;
+  if (claire > 0)
+    combien = 100;
+  if (claire > 40)
+    combien = 80;
+  if (claire > 80)
+    combien = 60;
+  if (claire > 100)
+    combien = 40;
+  if (claire > 120)
+    combien = 30;
+  if (claire > 140)
+    combien = 20;
+  if (claire > 180)
+    combien = 10;
+  return combien;
+}
+
 void setup() {
   Serial.begin(115200);
   dht.begin();
@@ -511,12 +591,13 @@ void setup() {
   server.on("/flash", handleFlash);
   server.on("/reset", handleReset);
   server.on("/temp", handleTemp);
+  server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
     Serial.println("");
     Serial.println(addy);
     Serial.println("Version request");
-    server.send(200, "text/html", "V2.0, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.1, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -537,7 +618,8 @@ void setup() {
                 "Changed fader functions for smoother fade\n<br>"
                 "Cleaned code\n\n<br><br>"
                 "Added Flashing function and page for smart widget usage\n<br>"
-                "Added var to show your thingspeak channel in /temp iframes\n\n<br><br>" + liens);
+                "Added var to show your thingspeak channel in /temp iframes\n\n<br><br>"
+                "Added /party page for easy control of flash mode\n\n<br><br>" + liens);
   });
   server.onNotFound(handleNotFound);
   server.begin();
@@ -566,20 +648,8 @@ void loop() {
       if (currentMillis - previousMillisr >= attendR) {
         fadeR();
         previousMillisr = currentMillis;
-        if (rouge > 0)
-          attendR = 70;
-        if (rouge > 40)
-          attendR = 60;
-        if (rouge > 80)
-          attendR = 50;
-        if (rouge > 100)
-          attendR = 40;
-        if (rouge > 120)
-          attendR = 30;
-        if (rouge > 140)
-          attendR = 20;
-        if (rouge > 180)
-          attendR = 10;
+        attendR = fadecomment(rouge);
+
       }
     }
     if (g != vert) {
@@ -587,20 +657,8 @@ void loop() {
       if (currentMillis - previousMillisg >= attendG) {
         fadeG();
         previousMillisg = currentMillis;
-        if (vert > 0)
-          attendG = 70;
-        if (vert > 40)
-          attendG = 60;
-        if (vert > 80)
-          attendG = 50;
-        if (vert > 100)
-          attendG = 40;
-        if (vert > 120)
-          attendG = 30;
-        if (vert > 140)
-          attendG = 20;
-        if (vert > 180)
-          attendG = 10;
+        attendG = fadecomment(vert);
+
       }
     }
     if (b != bleu) {
@@ -608,20 +666,7 @@ void loop() {
       if (currentMillis - previousMillisb >= attendB) {
         fadeB();
         previousMillisb = currentMillis;
-        if (bleu > 0)
-          attendB = 70;
-        if (bleu > 40)
-          attendB = 60;
-        if (bleu > 80)
-          attendB = 50;
-        if (bleu > 100)
-          attendB = 40;
-        if (bleu > 120)
-          attendB = 30;
-        if (bleu > 140)
-          attendB = 20;
-        if (bleu > 180)
-          attendB = 10;
+        attendB = fadecomment(bleu);
       }
     }
   }
