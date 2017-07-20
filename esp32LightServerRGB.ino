@@ -19,9 +19,9 @@ DallasTemperature sensors(&oneWire);
 // end of sensors
 
 // Settings you should check/change
-String resetpass = "YourWifiResetPassword"; // password to reset wifimanager when allready connected
+const String resetpass = "YourWifiResetPassword"; // password to reset wifimanager when allready connected
 const String thingkey = "YourThingSpeakKey"; //your thingspeak API key
-const String thingchanel = "000000"; //your thingspeak Chanel #
+const String thingchanel = "YourThingspeakChanel#"; //your thingspeak Chanel #
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const String liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/289148\">Temp stats</a>\n"; // html/links shown at bottom of pages
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
@@ -53,6 +53,7 @@ unsigned long flashfois = 0;
 unsigned long flashrendu = 0;
 int roulepastusuite = 0;
 int flashoufade = 0;
+String logs[51];
 // end of internally used vars
 
 // stylesheet for web pages
@@ -90,6 +91,13 @@ const String css = "<style>\n"
                    "transition-duration: 0.4s; width: 80%;\n}\n"
                    "button:hover {\n"
                    "box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);\n}\n"
+                   "div#logs {"
+                   "width: 100%;"
+                   "height: 450px;"
+                   "font-size: 12px;"
+                   "overflow: auto;"
+                   "text-align:left;"
+                   "}"
                    "</style>\n";
 // end of stylesheet for web pages
 
@@ -163,18 +171,44 @@ void fadeB() {
   }
 }
 
+// log rotator
+void logtourne() {
+  for (int i = 49; i > 0; i--) {
+    int l = i;
+    l = l + 1;
+    logs[l] = logs[i];
+  }
+}
+
+// web page to handle flashing of leds (color/delay/number of flashes)
+void handleLog() {
+  String addy = server.client().remoteIP().toString();
+  String contenu = "";
+  for (int i = 1; i < 51; i++) {
+    if (logs[i] != "&hearts; vide") {
+      contenu += logs[i];
+      contenu += "\n<br>";
+    }
+  }
+  server.send(200, "text/plain", contenu);
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Logs");
+  videCoeur();
+}
+
 // web page to handle flashing of leds (color/delay/number of flashes)
 void handleFlash() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Flash");
   String testteu = server.arg("COULEUR");
   String attend = server.arg("DELAIS");
   attendF = attend.toInt();
   String flashnombre = server.arg("FOIS");
   flashfois = flashnombre.toInt();
   flashfois = flashfois * 2;
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Flash");
   Serial.println(testteu);
   Serial.print("Delais - ");
   Serial.println(attendF);
@@ -210,14 +244,52 @@ void handleFlash() {
   contenu += "</head>\n<body>\n"
              "Merci</body></html>\n";
   server.send(200, "text/html", contenu);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Flash : Couleur=";
+  logs[1] += testteu;
+  logs[1] += " : Delais=";
+  logs[1] += attend;
+  logs[1] += " : Fois=";
+  logs[1] += flashnombre;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
 }
 
 // web page for flash mode
-void handleClignote() {
+void handlePitoune() {
   String addy = server.client().remoteIP().toString();
+  String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
+  contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere log</title>\n"
+             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
+  contenu += css;
+  contenu += "<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js\"></script>\n";
+  contenu += "</head>\n<body>\n"
+             "<div style=\"text-align:center;width:100%;\">\n"
+             "<h1>Les visiteurs</h1>\n"
+             "<div id=\"logs\"></div>\nDernier IP &agrave; avoir chang&eacute; la couleur : ";
+  contenu += dernadd;
+  contenu += "<br>\n";
+  contenu += liens;
+  contenu += "<script>\n"
+             "$( \"#logs\" ).load( \"/logs\" );\n"
+             "function pitoune(){\n"
+             "$( \".pitoune:empty\" ).remove();\n"
+             "$( \"#logs\" ).prepend($( \"<div class=\\\"pitoune\\\"></div>\" ).load( \"/logs\" ));\n"
+             "}\n"
+             "laLoad = setInterval(function(){ pitoune() }, 10000);\n"
+             "</script>\n"
+             "</div></body></html>\n";
+  server.send(200, "text/html", contenu);
   Serial.println("");
   Serial.println(addy);
-  Serial.println("Page flash");
+  Serial.println("Page logs");
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Page logs";
+}
+
+void handleClignote() {
+  String addy = server.client().remoteIP().toString();
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere flash</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -272,6 +344,12 @@ void handleClignote() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Page flash");
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Page Flash";
 }
 
 // web page to handle leds fading
@@ -314,14 +392,16 @@ void handleLeds() {
   contenu += "</head>\n<body>\n"
              "Merci</body></html>\n";
   server.send(200, "text/html", contenu);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Fade : Couleur=";
+  logs[1] += testteu;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
 }
 
 // index page
 void handleRoot() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page acceuil");
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere soit</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -372,6 +452,12 @@ void handleRoot() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Page acceuil");
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Acceuil";
 }
 
 //reset page
@@ -422,6 +508,11 @@ void handleReset() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Reset : Password=";
+  logs[1] += passme;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (ouireset == 1) {
     Serial.println("Reset dans 10 secondes");
     delay(10000);
@@ -459,16 +550,29 @@ void handleNotFound() {
   server.send(404, "text/html", htmlmessage);
   String message = "404 File Not Found\n";
   message += "URI: ";
-  message += server.uri();
+  String uriL = server.uri();
+  message += uriL;
   message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  String methodeL = (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += methodeL;
   message += "\nArguments: ";
   message += server.args();
   message += "\n";
+  String argsL;
   for (uint8_t i = 0; i < server.args(); i++) {
+    argsL += ": " + server.argName(i) + "=" + server.arg(i) + " ";
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
   Serial.print(message);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : 404 : URI=";
+  logs[1] += uriL;
+  logs[1] += " : Methode=";
+  logs[1] += methodeL;
+  logs[1] += " ";
+  logs[1] += argsL;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
 }
 
 // function executed in main loop every minute to update sensors data to thingspeak.com
@@ -514,10 +618,6 @@ void handleTemp() {
     latemp = sensors.getTempCByIndex(0);
   }
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.print("Temperature : ");
-  Serial.println(latemp);
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Quel chaleur</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -547,12 +647,24 @@ void handleTemp() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
+  Serial.println("");
+  Serial.println(addy);
+  Serial.print("Temperature : ");
+  Serial.println(latemp);
+  Serial.print("Humidite : ");
+  Serial.println(h);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Temp : Temp=";
+  logs[1] += latemp;
+  logs[1] += " : Humidite=";
+  logs[1] += h;
 }
 
 int fadecomment(int claire) {
   int combien = 70;
   if (claire > 0)
-    combien = 100;
+    combien = 90;
   if (claire > 40)
     combien = 80;
   if (claire > 80)
@@ -564,11 +676,18 @@ int fadecomment(int claire) {
   if (claire > 140)
     combien = 20;
   if (claire > 180)
-    combien = 10;
+    combien = 9;
   return combien;
 }
 
+void videCoeur(){
+    for (int i = 50; i > 0; i--) {
+    logs[i] = "&hearts; vide";
+  }
+}
+
 void setup() {
+  videCoeur();
   Serial.begin(115200);
   dht.begin();
   ledcAttachPin(pinRouge, 1); // assign RGB led pins to channels
@@ -590,14 +709,13 @@ void setup() {
   server.on("/leds", handleLeds);
   server.on("/flash", handleFlash);
   server.on("/reset", handleReset);
+  server.on("/logs", handleLog);
+  server.on("/log", handlePitoune);
   server.on("/temp", handleTemp);
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    Serial.println("");
-    Serial.println(addy);
-    Serial.println("Version request");
-    server.send(200, "text/html", "V2.1, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.2, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -619,7 +737,14 @@ void setup() {
                 "Cleaned code\n\n<br><br>"
                 "Added Flashing function and page for smart widget usage\n<br>"
                 "Added var to show your thingspeak channel in /temp iframes\n\n<br><br>"
-                "Added /party page for easy control of flash mode\n\n<br><br>" + liens);
+                "Added /party page for easy control of flash mode\n\n<br><br>"
+                "Added /log page to see latest ~50 visits\n\n<br><br>" + liens);
+    Serial.println("");
+    Serial.println(addy);
+    Serial.println("Version request");
+    logtourne();
+    logs[1] = addy;
+    logs[1] += " : Version request";
   });
   server.onNotFound(handleNotFound);
   server.begin();
@@ -639,8 +764,8 @@ void loop() {
   if (flashoufade == 1) {
     currentMillis = millis();
     if (currentMillis - previousMillisf >= attendF) {
-      previousMillisf = currentMillis;
       flashfunk();
+      previousMillisf = currentMillis;
     }
   } else {
     if (r != rouge) {
@@ -649,7 +774,6 @@ void loop() {
         fadeR();
         previousMillisr = currentMillis;
         attendR = fadecomment(rouge);
-
       }
     }
     if (g != vert) {
@@ -658,7 +782,6 @@ void loop() {
         fadeG();
         previousMillisg = currentMillis;
         attendG = fadecomment(vert);
-
       }
     }
     if (b != bleu) {
@@ -671,5 +794,4 @@ void loop() {
     }
   }
 }
-
 
