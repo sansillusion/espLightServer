@@ -17,7 +17,7 @@ and the set it up for your home wifi configuration. then you connect to it's ip 
 change the led strip color (pin 12 (Red), 13 (Blue), 14 (green) on Wemos Lolin)
 
 
-it has Seven basic pages:
+it has these basic pages:
 
 "/" for controling the LED strip color
 
@@ -33,6 +33,10 @@ it has Seven basic pages:
 
 "/flash" to flash leds (POST or GET COULEUR=#FFFFFF FOIS=10 DELAIS=500)
   where COULEUR is html color code, FOIS is the number of flashes, DELAIS is the delay in ms between flash.
+  
+"/party" for a page with post form to flash leds
+ 
+"/log" to see latest visitors
 
 
 Any input are welcome !
