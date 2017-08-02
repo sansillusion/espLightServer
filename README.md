@@ -6,6 +6,8 @@ A simple esp32 LED strip, wifi enabled, controler with temperature sensor and th
 uses thingspeak for temperature data logging from a (ky-001 on pin 5) sensor and a (ky-015 on pin 15)
 
 
+
+
 This code requires the following dependencies :
 WifiManager by tzapu
 all other dependencies are built in the arduino ide
