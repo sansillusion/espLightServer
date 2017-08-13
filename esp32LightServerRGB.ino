@@ -4,9 +4,12 @@
 #include <WiFiManager.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
+#include <Preferences.h>
+
+Preferences preferences;
 
 // sensors stuff
-#include <OneWire.h>
+#include <Wire.h>
 #include <DallasTemperature.h>
 #include <DHT.h>
 #include <ESPmDNS.h>
@@ -19,9 +22,9 @@ DallasTemperature sensors(&oneWire);
 // end of sensors
 
 // Settings you should check/change
-const String resetpass = "YourWifiResetPassword"; // password to reset wifimanager when allready connected
-const String thingkey = "YourThingSpeakKey"; //your thingspeak API key
-const String thingchanel = "YourThingspeakChanel#"; //your thingspeak Chanel #
+const String resetpass = "oklacac571"; // password to reset wifimanager when allready connected
+const String thingkey = "174R9WPNBVJMCB6L"; //your thingspeak API key
+const String thingchanel = "289148"; //your thingspeak Chanel #
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const String liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/289148\">Temp stats</a>\n"; // html/links shown at bottom of pages
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
@@ -53,6 +56,7 @@ unsigned long flashfois = 0;
 unsigned long flashrendu = 0;
 int roulepastusuite = 0;
 int flashoufade = 0;
+int tstrouteur = 0;
 String logs[51];
 // end of internally used vars
 
@@ -220,6 +224,10 @@ void handleFlash() {
     r = number >> 16;
     g = number >> 8 & 0xFF;
     b = number & 0xFF;
+    preferences.putString("derncoul", derncoul);
+    preferences.putUInt("r", r);
+    preferences.putUInt("g", g);
+    preferences.putUInt("b", b);
     Serial.print("Rouge = ");
     Serial.println(r);
     Serial.print("Vert = ");
@@ -365,6 +373,10 @@ void handleLeds() {
     r = number >> 16;
     g = number >> 8 & 0xFF;
     b = number & 0xFF;
+    preferences.putString("derncoul", derncoul);
+    preferences.putUInt("r", r);
+    preferences.putUInt("g", g);
+    preferences.putUInt("b", b);
     if (r != rouge) {
       Serial.print("Rouge = ");
       Serial.println(r);
@@ -603,6 +615,18 @@ void latemp() {
       Serial.println("");
       http.begin(webadd);
       int httpCode = http.GET();//Send the request
+      if (httpCode > 0) {
+        Serial.println("Envoit reussit !");
+        tstrouteur = 0;
+      } else {
+        if (tstrouteur == 10) {
+          Serial.println("10 Erreur envoit ! REBOOT !");
+          ESP.restart();
+        } else {
+          Serial.println("Erreur envoit !");
+          tstrouteur++;
+        }
+      }
       http.end();   //Close connection
     }
   }
@@ -680,13 +704,14 @@ int fadecomment(int claire) {
   return combien;
 }
 
-void videCoeur(){
-    for (int i = 50; i > 0; i--) {
+void videCoeur() {
+  for (int i = 50; i > 0; i--) {
     logs[i] = "&hearts; vide";
   }
 }
 
 void setup() {
+  preferences.begin("lumiere", false);
   videCoeur();
   Serial.begin(115200);
   dht.begin();
@@ -702,8 +727,24 @@ void setup() {
   ledcSetup(1, 12000, 8); // 12 kHz PWM, 8-bit resolution
   ledcSetup(2, 12000, 8);
   ledcSetup(3, 12000, 8);
+  derncoul = preferences.getString("derncoul", "#000000");
+  r = preferences.getUInt("r", 0);
+  g = preferences.getUInt("g", 0);
+  b = preferences.getUInt("b", 0);
+  //rouge = r;
+  //vert = g;
+  //bleu = b;
+  //ledcWrite(1, r);
+  //ledcWrite(2, g);
+  //ledcWrite(3, b);
+
   WiFiManager wifiManager;
-  wifiManager.autoConnect();
+  wifiManager.setTimeout(240);
+  if (!wifiManager.autoConnect()) {
+    delay(3000);
+    ESP.restart();
+    delay(5000);
+  }
   MDNS.begin("lumiere");
   server.on("/", handleRoot);
   server.on("/leds", handleLeds);
@@ -715,7 +756,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.2, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.4, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -738,7 +779,9 @@ void setup() {
                 "Added Flashing function and page for smart widget usage\n<br>"
                 "Added var to show your thingspeak channel in /temp iframes\n\n<br><br>"
                 "Added /party page for easy control of flash mode\n\n<br><br>"
-                "Added /log page to see latest ~50 visits\n\n<br><br>" + liens);
+                "Added /log page to see latest ~50 visits\n\n<br><br>"
+                "Added reboot if unable to connect to internet more than 10 times to send wheather data.\n\n<br><br>"
+                "Added color persistance trough reboot using esp32 Preferences\n\n<br><br>" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Version request");
@@ -794,4 +837,3 @@ void loop() {
     }
   }
 }
-
