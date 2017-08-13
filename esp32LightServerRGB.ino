@@ -22,9 +22,9 @@ DallasTemperature sensors(&oneWire);
 // end of sensors
 
 // Settings you should check/change
-const String resetpass = "oklacac571"; // password to reset wifimanager when allready connected
-const String thingkey = "174R9WPNBVJMCB6L"; //your thingspeak API key
-const String thingchanel = "289148"; //your thingspeak Chanel #
+const String resetpass = "YourResetPassword"; // password to reset wifimanager when allready connected
+const String thingkey = "YOURTHINKSPEAKKEY"; //your thingspeak API key
+const String thingchanel = "123456"; //your thingspeak Chanel #
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const String liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/289148\">Temp stats</a>\n"; // html/links shown at bottom of pages
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
