@@ -374,26 +374,26 @@ void handleLeds() {
     g = number >> 8 & 0xFF;
     b = number & 0xFF;
     preferences.putString("derncoul", derncoul);
-    preferences.putUInt("r", r);
-    preferences.putUInt("g", g);
-    preferences.putUInt("b", b);
     if (r != rouge) {
       Serial.print("Rouge = ");
       Serial.println(r);
       dernadd = addy;
       flashoufade = 0;
+      preferences.putUInt("r", r);
     }
     if (g != vert) {
       Serial.print("Vert = ");
       Serial.println(g);
       dernadd = addy;
       flashoufade = 0;
+      preferences.putUInt("g", g);
     }
     if (b != bleu) {
       Serial.print("Bleu = ");
       Serial.println(b);
       dernadd = addy;
       flashoufade = 0;
+      preferences.putUInt("b", b);
     }
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -731,13 +731,6 @@ void setup() {
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
   b = preferences.getUInt("b", 0);
-  //rouge = r;
-  //vert = g;
-  //bleu = b;
-  //ledcWrite(1, r);
-  //ledcWrite(2, g);
-  //ledcWrite(3, b);
-
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
   if (!wifiManager.autoConnect()) {
