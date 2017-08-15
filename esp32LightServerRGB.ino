@@ -32,9 +32,9 @@ uint8_t pinBleu = 13;
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const char* www_username = "admin";
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
-String resetpass = ""; // password to reset wifimanager when allready connected
-String thingkey = ""; //your thingspeak API key
-String thingchanel = ""; //your thingspeak Chanel #
+String resetpass = "";
+String thingkey = "";
+String thingchanel = "";
 String liens = "";
 String derncoul = "";
 WebServer server(80);
@@ -107,6 +107,13 @@ const String css = "<style>\n"
 // end of stylesheet for web pages
 
 // functions used internally
+
+//used to set the links at the bottom of the pages (ran at setup and on /setup changes)
+void lesliens() {
+  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"https://thingspeak.com/channels/";
+  liens += thingchanel;
+  liens += "\">Temp stats</a>\n";
+}
 
 // used to flash leds
 void flashfunk() {
@@ -186,6 +193,10 @@ void logtourne() {
 
 // web page to handle flashing of leds (color/delay/number of flashes)
 void handleLog() {
+  if (!server.authenticate(www_username, string2char(resetpass))) {
+    Serial.println("pas/mauvais password");
+    return server.requestAuthentication();
+  }
   String addy = server.client().remoteIP().toString();
   String contenu = "";
   for (int i = 1; i < 51; i++) {
@@ -197,7 +208,7 @@ void handleLog() {
   server.send(200, "text/plain", contenu);
   Serial.println("");
   Serial.println(addy);
-  Serial.println("Logs");
+  Serial.println("Page de Logs");
   videCoeur();
 }
 
@@ -266,6 +277,13 @@ void handleFlash() {
 // web page for flash mode
 void handlePitoune() {
   String addy = server.client().remoteIP().toString();
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Page de logs");
+  if (!server.authenticate(www_username, string2char(resetpass))) {
+    Serial.println("pas/mauvais password");
+    return server.requestAuthentication();
+  }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere log</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -288,9 +306,6 @@ void handlePitoune() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page logs");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Page logs";
@@ -478,7 +493,11 @@ void handleReset() {
   String addy = server.client().remoteIP().toString();
   Serial.println("");
   Serial.println(addy);
-  Serial.println("!!! RESET PAGE !!!");
+  Serial.println("!!! PAGE DE RESET !!!");
+  if (!server.authenticate(www_username, string2char(resetpass))) {
+    Serial.println("pas/mauvais password");
+    return server.requestAuthentication();
+  }
   String testteu = server.arg("RESET");
   String passme = server.arg("PASSME");
   if (testteu == "OUI") {
@@ -496,20 +515,20 @@ void handleReset() {
              "<div style=\"text-align:center;width:100%;\">\n";
   if (!ouireset) {
     contenu += "<form action=\"/reset\" method=\"post\">\n"
-               "<h1>Tu veux resetter le wifi network pour reconfigurer ?</h1>"
+               "<h2>Tu veux VRAIEMENT resetter TOUT les r&eacute;glages (incluent les param&egrave;tres wifi)</h2>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
                "<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
   } else if (ouireset != 1) {
     contenu += "<form action=\"/reset\" method=\"post\">\n"
-               "<h1>Tu veux resetter le wifi network pour reconfigurer ?</h1>"
+               "<h2>Tu veux VRAIEMENT resetter TOUT les r&eacute;glages (incluent les param&egrave;tres wifi)</h2>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
                "<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
                "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
-    Serial.print("BAD PASSWORD : ");
+    Serial.print("MAUVAIS PASSWORD : ");
     Serial.println(passme);
   } else if (ouireset == 1) {
     contenu += "<h1>Reset Dans 10 Secondes</h1>\n";
@@ -528,6 +547,7 @@ void handleReset() {
   if (ouireset == 1) {
     Serial.println("Reset dans 10 secondes");
     delay(10000);
+    preferences.clear();
     WiFiManager wifiManager;
     wifiManager.resetSettings();
     ESP.restart();
@@ -539,9 +559,9 @@ void handleSetup() {
   String addy = server.client().remoteIP().toString();
   Serial.println("");
   Serial.println(addy);
-  Serial.println("!!! SETTINGS PAGE !!!");
+  Serial.println("!!! PAGE DE SETUP !!!");
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("Setup request no/bad password");
+    Serial.println("pas/mauvais password");
     return server.requestAuthentication();
   }
   int ouireset = 0;
@@ -605,13 +625,20 @@ void handleSetup() {
     contenu += "\"><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
                "</form>\n";
-    Serial.print("BAD PASSWORD : ");
-    Serial.println(passme);
+    if (ouireset == 3) {
+      Serial.println("CHAMP VIDE");
+    } else {
+      Serial.print("MAUVAIS PASSWORD : ");
+      Serial.println(passme);
+    }
   } else if (ouireset == 1) {
     contenu += "<h1>R&eacute;glages chang&eacute;s !</h1>\n";
   }
   contenu += "<br>Dernier IP &agrave; avoir chang&eacute; la couleur :";
   contenu += dernadd;
+  contenu += "\n<br>";
+  contenu += "\n<h3><a href=\"/reset\">Remet les r&eacute;glages &agrave; z&eacute;ro !</a></h3>";
+  contenu += "\n<a href=\"/log\">Voir les derniers visiteurs</a> - <a href=\"/party\">Mode Party/Flash</a>";
   contenu += "\n<br>";
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
@@ -626,26 +653,24 @@ void handleSetup() {
   }
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (ouireset == 1) {
-    Serial.println("Settings changed");
+    Serial.println("Réglages changé");
     if (noupass != resetpass) {
       preferences.putString("resetpass", noupass);
       resetpass = noupass;
-      Serial.print("NEW Password : ");
+      Serial.print("NOUVEAU Password : ");
       Serial.println(resetpass);
     }
     if (lakey != thingkey) {
       preferences.putString("thingkey", lakey);
       thingkey = lakey;
-      Serial.print("NEW API KEY : ");
+      Serial.print("NOUVEL API KEY : ");
       Serial.println(thingkey);
     }
     if (lechan != thingchanel) {
       preferences.putString("thingchanel", lechan);
       thingchanel = lechan;
-      liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
-      liens += thingchanel;
-      liens += "\">Temp stats</a>\n";
-      Serial.print("NEW channel : ");
+      lesliens();
+      Serial.print("NOUVEAU channel : ");
       Serial.println(thingchanel);
     }
   }
@@ -723,7 +748,7 @@ void latemp() {
     float t = dht.readTemperature();
     if (tempC != "-127.00") {
       if (tempC != "85.00") {
-        Serial.print("Envoi de temperature et humidite: ");
+        Serial.print("Envoi de température et humidité: ");
         Serial.print(tempC);
         Serial.print(" - ");
         HTTPClient http;
@@ -742,14 +767,14 @@ void latemp() {
         http.begin(webadd);
         int httpCode = http.GET();//Send the request
         if (httpCode > 0) {
-          Serial.println("Envoit reussit !");
+          Serial.println("Envoit réussit !");
           tstrouteur = 0;
         } else {
           if (tstrouteur == 10) {
             Serial.println("10 Erreur envoit ! REBOOT !");
             ESP.restart();
           } else {
-            Serial.println("Erreur envoit !");
+            Serial.println("!!! Erreur envoit !!!");
             tstrouteur++;
           }
         }
@@ -757,7 +782,7 @@ void latemp() {
       }
     }
   } else {
-    Serial.println("Not sending weather data to none key !");
+    Serial.println("Pas de API KEY donc pas d'envoi");
   }
 }
 
@@ -778,7 +803,7 @@ void handleTemp() {
   contenu += "</head>\n<body>\n"
              "<div style=\"text-align:center;width:100%;\">\n";
   contenu += "<form action=\"/\" method=\"get\">\n"
-             "<h1>Voici la temperature</h1>"
+             "<h1>Voici la temp&eacute;rature</h1>"
              "<h2>";
   contenu += latemp;
   contenu += "&deg;C Humidit&eacute; : ";
@@ -807,9 +832,9 @@ void handleTemp() {
   server.send(200, "text/html", contenu);
   Serial.println("");
   Serial.println(addy);
-  Serial.print("Temperature : ");
+  Serial.print("Température : ");
   Serial.println(latemp);
-  Serial.print("Humidite : ");
+  Serial.print("Humidité : ");
   Serial.println(h);
   logtourne();
   logs[1] = addy;
@@ -861,8 +886,6 @@ void setup() {
   ledcSetup(1, 12000, 8); // 12 kHz PWM, 8-bit resolution
   ledcSetup(2, 12000, 8);
   ledcSetup(3, 12000, 8);
-  //      preferences.putString("resetpass", "admin");
-
   derncoul = preferences.getString("derncoul", "#000000");
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
@@ -870,9 +893,7 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
-  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
-  liens += thingchanel;
-  liens += "\">Temp stats</a>\n";
+  lesliens();
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
   if (!wifiManager.autoConnect()) {
@@ -921,14 +942,14 @@ void setup() {
                 "Added /setup page to set admin password and thingspeak api key and channel\n\n<br><br>" + liens);
     Serial.println("");
     Serial.println(addy);
-    Serial.println("Version request");
+    Serial.println("Page de Version");
     logtourne();
     logs[1] = addy;
-    logs[1] += " : Version request";
+    logs[1] += " : Page de version";
   });
   server.onNotFound(handleNotFound);
   server.begin();
-  Serial.println("HTTP server started");
+  Serial.println("Serveur web démaré");
   delay(100);
   MDNS.addService("http", "tcp", 80);
   sensors.begin();
