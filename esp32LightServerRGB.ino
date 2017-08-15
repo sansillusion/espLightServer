@@ -13,32 +13,31 @@ Preferences preferences;
 #include <DallasTemperature.h>
 #include <DHT.h>
 #include <ESPmDNS.h>
-#define ONE_WIRE_BUS 5
-#define DHTPIN 15
-#define DHTTYPE DHT11
+#define ONE_WIRE_BUS 5 //dallas sensor pin
+#define DHTPIN 15 // dht sensor pin
+#define DHTTYPE DHT11 //dht type 11 or 22
 DHT dht(DHTPIN, DHTTYPE);
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 // end of sensors
 
-// Settings you should check/change !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! mabe not anymore !!!!!!!!!!!!!
-
-const char* www_username = "admin";
-String resetpass = "admin"; // password to reset wifimanager when allready connected
-String thingkey = "none"; //your thingspeak API key
-String thingchanel = "none"; //your thingspeak Chanel #
-const long interval = 60000; // interval in ms for sending temperature data to thingspeak
-String liens = "";
-String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
 // led pins
 uint8_t pinRouge = 12;
-uint8_t pinVerte = 14; // internally pulled up
+uint8_t pinVerte = 14;
 uint8_t pinBleu = 13;
-// end of settings you should check/change
+//end of led pins
 
 // internally used vars
+// Some used vars, some of these are set and loaded in setup() using esp32 Preferences
+const long interval = 60000; // interval in ms for sending temperature data to thingspeak
+const char* www_username = "admin";
+String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
+String resetpass = ""; // password to reset wifimanager when allready connected
+String thingkey = ""; //your thingspeak API key
+String thingchanel = ""; //your thingspeak Chanel #
+String liens = "";
+String derncoul = "";
 WebServer server(80);
-String derncoul = "#000000";
 long r = 0;
 long g = 0;
 long b = 0;
@@ -180,8 +179,7 @@ void fadeB() {
 // log rotator
 void logtourne() {
   for (int i = 49; i > 0; i--) {
-    int l = i;
-    l = l + 1;
+    int l = i + 1;
     logs[l] = logs[i];
   }
 }
@@ -538,13 +536,16 @@ void handleReset() {
 
 //setup page
 void handleSetup() {
-  if (!server.authenticate(www_username, string2char(resetpass)))
-    return server.requestAuthentication();
-  int ouireset = 0;
   String addy = server.client().remoteIP().toString();
   Serial.println("");
   Serial.println(addy);
   Serial.println("!!! SETTINGS PAGE !!!");
+  if (!server.authenticate(www_username, string2char(resetpass))) {
+    Serial.println("Setup request no/bad password");
+    return server.requestAuthentication();
+
+  }
+  int ouireset = 0;
   String testteu = server.arg("RESET");
   String passme = server.arg("PASSME");
   String noupass = server.arg("LAPASSE");
@@ -606,22 +607,39 @@ void handleSetup() {
   logtourne();
   logs[1] = addy;
   logs[1] += " : Settings : Password=";
-  logs[1] += passme;
+  if (passme != resetpass) {
+    logs[1] += passme;
+  } else {
+    logs[1] += "!!! Not showing password !!!";
+  }
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (ouireset == 1) {
     Serial.println("Settings changed");
-    preferences.putString("resetpass", noupass);
-    preferences.putString("thingkey", lakey);
-    preferences.putString("thingchanel", lechan);
-    resetpass = noupass;
-    thingkey = lakey;
-    thingchanel = lechan;
-    liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
-    liens += thingchanel;
-    liens += "\">Temp stats</a>\n";
+    if (noupass != resetpass) {
+      preferences.putString("resetpass", noupass);
+      resetpass = noupass;
+      Serial.print("NEW Password : ");
+      Serial.println(resetpass);
+    }
+    if (lakey != thingkey) {
+      preferences.putString("thingkey", lakey);
+      thingkey = lakey;
+      Serial.print("NEW API KEY : ");
+      Serial.println(thingkey);
+    }
+    if (lechan != thingchanel) {
+      preferences.putString("thingchanel", lechan);
+      thingchanel = lechan;
+      liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
+      liens += thingchanel;
+      liens += "\">Temp stats</a>\n";
+      Serial.print("NEW channel : ");
+      Serial.println(thingchanel);
+    }
   }
 }
 
+// convert string 2 char*
 char* string2char(String command) {
   if (command.length() != 0) {
     char *p = const_cast<char*>(command.c_str());
@@ -754,7 +772,7 @@ void handleTemp() {
   contenu += "&deg;C Humidit&eacute; : ";
   contenu += h;
   contenu += "</h2><br>\n";
-  if (thingkey != "none") {
+  if (thingchanel != "none") {
     contenu += "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
     contenu += thingchanel;
     contenu += "/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
@@ -790,19 +808,19 @@ void handleTemp() {
 }
 
 int fadecomment(int claire) {
-  int combien = 70;
+  int combien = 77;
   if (claire > 0)
-    combien = 90;
+    combien = 77;
   if (claire > 40)
-    combien = 80;
-  if (claire > 80)
     combien = 60;
-  if (claire > 100)
+  if (claire > 80)
     combien = 40;
-  if (claire > 120)
+  if (claire > 100)
     combien = 30;
-  if (claire > 140)
+  if (claire > 120)
     combien = 20;
+  if (claire > 140)
+    combien = 15;
   if (claire > 180)
     combien = 9;
   return combien;
@@ -815,11 +833,11 @@ void videCoeur() {
 }
 
 void setup() {
+  Serial.begin(115200);
   preferences.begin("lumiere", false);
   videCoeur();
-  Serial.begin(115200);
   dht.begin();
-  ledcAttachPin(pinRouge, 1); // assign RGB led pins to channels
+  ledcAttachPin(pinRouge, 1);
   ledcAttachPin(pinVerte, 2);
   ledcAttachPin(pinBleu, 3);
   pinMode(pinRouge, OUTPUT);
@@ -838,7 +856,7 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
-  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
+  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
   liens += thingchanel;
   liens += "\">Temp stats</a>\n";
   WiFiManager wifiManager;
