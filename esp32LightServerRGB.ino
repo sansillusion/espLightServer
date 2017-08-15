@@ -543,7 +543,6 @@ void handleSetup() {
   if (!server.authenticate(www_username, string2char(resetpass))) {
     Serial.println("Setup request no/bad password");
     return server.requestAuthentication();
-
   }
   int ouireset = 0;
   String testteu = server.arg("RESET");
@@ -554,6 +553,15 @@ void handleSetup() {
   if (testteu == "OUI") {
     if (passme == resetpass) {
       ouireset = 1;
+      if (noupass == "") {
+        ouireset = 3;
+      }
+      if (lakey == "") {
+        ouireset = 3;
+      }
+      if (lechan == "") {
+        ouireset = 3;
+      }
     } else {
       ouireset = 2;
     }
@@ -582,9 +590,13 @@ void handleSetup() {
     contenu += "<form action=\"/setup\" method=\"post\">\n"
                "<h1>Changes les r&eacute;glages ici !</h1>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
-               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
-               "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
-               "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
+               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n";
+    if (ouireset != 3) {
+      contenu += "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n";
+    } else {
+      contenu += "<h2>!!! LES CHAMPS NE PEUVENT PAS &Ecirc;TRE VIDE !!!</h2><br>\n";
+    }
+    contenu += "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
                "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
     contenu += thingkey;
     contenu += "\"><br>\n"
@@ -849,6 +861,8 @@ void setup() {
   ledcSetup(1, 12000, 8); // 12 kHz PWM, 8-bit resolution
   ledcSetup(2, 12000, 8);
   ledcSetup(3, 12000, 8);
+  //      preferences.putString("resetpass", "admin");
+
   derncoul = preferences.getString("derncoul", "#000000");
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
