@@ -21,12 +21,14 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 // end of sensors
 
-// Settings you should check/change
-const String resetpass = "YourResetPassword"; // password to reset wifimanager when allready connected
-const String thingkey = "YourThingSpeakApiKey"; //your thingspeak API key
-const String thingchanel = "123456"; //your thingspeak Chanel #
+// Settings you should check/change !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! mabe not anymore !!!!!!!!!!!!!
+
+const char* www_username = "admin";
+String resetpass = "admin"; // password to reset wifimanager when allready connected
+String thingkey = "none"; //your thingspeak API key
+String thingchanel = "none"; //your thingspeak Chanel #
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
-const String liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/289148\">Temp stats</a>\n"; // html/links shown at bottom of pages
+String liens = "";
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
 // led pins
 uint8_t pinRouge = 12;
@@ -534,6 +536,99 @@ void handleReset() {
   }
 }
 
+//setup page
+void handleSetup() {
+  if (!server.authenticate(www_username, string2char(resetpass)))
+    return server.requestAuthentication();
+  int ouireset = 0;
+  String addy = server.client().remoteIP().toString();
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("!!! SETTINGS PAGE !!!");
+  String testteu = server.arg("RESET");
+  String passme = server.arg("PASSME");
+  String noupass = server.arg("LAPASSE");
+  String lakey = server.arg("APIKEY");
+  String lechan = server.arg("CHANEL");
+  if (testteu == "OUI") {
+    if (passme == resetpass) {
+      ouireset = 1;
+    } else {
+      ouireset = 2;
+    }
+  }
+  String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
+  contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere se SETUP</title>\n"
+             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
+  contenu += css;
+  contenu += "</head>\n<body>\n"
+             "<div style=\"text-align:center;width:100%;\">\n";
+  if (!ouireset) {
+    contenu += "<form action=\"/setup\" method=\"post\">\n"
+               "<h1>Changes les r&eacute;glages ici !</h1>"
+               "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
+               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
+               "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
+               "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
+    contenu += thingkey;
+    contenu += "\"><br>\n"
+               "ThingSpeak Channel # :<br>\n<input type=\"text\" name=\"CHANEL\" value=\"";
+    contenu += thingchanel;
+    contenu += "\"><br>\n"
+               "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
+               "</form>\n";
+  } else if (ouireset != 1) {
+    contenu += "<form action=\"/setup\" method=\"post\">\n"
+               "<h1>Changes les r&eacute;glages ici !</h1>"
+               "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
+               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
+               "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
+               "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
+               "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
+    contenu += thingkey;
+    contenu += "\"><br>\n"
+               "ThingSpeak Channel # :<br>\n<input type=\"text\" name=\"CHANEL\" value=\"";
+    contenu += thingchanel;
+    contenu += "\"><br>\n"
+               "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
+               "</form>\n";
+    Serial.print("BAD PASSWORD : ");
+    Serial.println(passme);
+  } else if (ouireset == 1) {
+    contenu += "<h1>R&eacute;glages chang&eacute;s !</h1>\n";
+  }
+  contenu += "<br>Dernier IP &agrave; avoir chang&eacute; la couleur :";
+  contenu += dernadd;
+  contenu += "\n<br>";
+  contenu += liens;
+  contenu += "\n<br></div></body></html>\n";
+  server.send(200, "text/html", contenu);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Settings : Password=";
+  logs[1] += passme;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  if (ouireset == 1) {
+    Serial.println("Settings changed");
+    preferences.putString("resetpass", noupass);
+    preferences.putString("thingkey", lakey);
+    preferences.putString("thingchanel", lechan);
+    resetpass = noupass;
+    thingkey = lakey;
+    thingchanel = lechan;
+    liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
+    liens += thingchanel;
+    liens += "\">Temp stats</a>\n";
+  }
+}
+
+char* string2char(String command) {
+  if (command.length() != 0) {
+    char *p = const_cast<char*>(command.c_str());
+    return p;
+  }
+}
+
 // 404 not found page
 void handleNotFound() {
   String addy = server.client().remoteIP().toString();
@@ -589,46 +684,50 @@ void handleNotFound() {
 
 // function executed in main loop every minute to update sensors data to thingspeak.com
 void latemp() {
-  sensors.requestTemperatures();
-  float thetemp = sensors.getTempCByIndex(0);
-  char buffer[10];
-  String tempC = dtostrf(thetemp, 5, 2, buffer);
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-  if (tempC != "-127.00") {
-    if (tempC != "85.00") {
-      Serial.print("Envoi de temperature et humidite: ");
-      Serial.print(tempC);
-      Serial.print(" - ");
-      HTTPClient http;
-      String webadd = "http://api.thingspeak.com/update?key=";
-      webadd += thingkey;
-      webadd += "&field1=";
-      webadd += tempC;
-      if (h == h) { // to prevent NaN
-        webadd += "&field2=";
-        webadd += h;
-        Serial.print(h);
-        webadd += "&field3=";
-        webadd += t;
-      }
-      Serial.println("");
-      http.begin(webadd);
-      int httpCode = http.GET();//Send the request
-      if (httpCode > 0) {
-        Serial.println("Envoit reussit !");
-        tstrouteur = 0;
-      } else {
-        if (tstrouteur == 10) {
-          Serial.println("10 Erreur envoit ! REBOOT !");
-          ESP.restart();
-        } else {
-          Serial.println("Erreur envoit !");
-          tstrouteur++;
+  if (thingkey != "none") {
+    sensors.requestTemperatures();
+    float thetemp = sensors.getTempCByIndex(0);
+    char buffer[10];
+    String tempC = dtostrf(thetemp, 5, 2, buffer);
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    if (tempC != "-127.00") {
+      if (tempC != "85.00") {
+        Serial.print("Envoi de temperature et humidite: ");
+        Serial.print(tempC);
+        Serial.print(" - ");
+        HTTPClient http;
+        String webadd = "http://api.thingspeak.com/update?key=";
+        webadd += thingkey;
+        webadd += "&field1=";
+        webadd += tempC;
+        if (h == h) { // to prevent NaN
+          webadd += "&field2=";
+          webadd += h;
+          Serial.print(h);
+          webadd += "&field3=";
+          webadd += t;
         }
+        Serial.println("");
+        http.begin(webadd);
+        int httpCode = http.GET();//Send the request
+        if (httpCode > 0) {
+          Serial.println("Envoit reussit !");
+          tstrouteur = 0;
+        } else {
+          if (tstrouteur == 10) {
+            Serial.println("10 Erreur envoit ! REBOOT !");
+            ESP.restart();
+          } else {
+            Serial.println("Erreur envoit !");
+            tstrouteur++;
+          }
+        }
+        http.end();   //Close connection
       }
-      http.end();   //Close connection
     }
+  } else {
+    Serial.println("Not sending weather data to none key !");
   }
 }
 
@@ -654,16 +753,21 @@ void handleTemp() {
   contenu += latemp;
   contenu += "&deg;C Humidit&eacute; : ";
   contenu += h;
-  contenu += "</h2><br>\n<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-  contenu += thingchanel;
-  contenu += "/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
-             "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-  contenu += thingchanel;
-  contenu += "/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
-             "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-  contenu += thingchanel;
-  contenu += "/charts/3?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
-             "<input type=\"submit\" class=\"button1\" value=\"Acceuil\">\n"
+  contenu += "</h2><br>\n";
+  if (thingkey != "none") {
+    contenu += "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+    contenu += thingchanel;
+    contenu += "/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
+               "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+    contenu += thingchanel;
+    contenu += "/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
+               "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+    contenu += thingchanel;
+    contenu += "/charts/3?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>";
+  } else {
+    contenu += "<h2>Vas dans /setup pour les r&eacute;glages thingspeak !</h2>";
+  }
+  contenu += "<input type=\"submit\" class=\"button1\" value=\"Acceuil\">\n"
              "</form>\n"
              "<br>Dernier IP &agrave; avoir chang&eacute; la couleur :";
   contenu += dernadd;
@@ -731,6 +835,12 @@ void setup() {
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
   b = preferences.getUInt("b", 0);
+  resetpass = preferences.getString("resetpass", "admin");
+  thingkey = preferences.getString("thingkey", "none");
+  thingchanel = preferences.getString("thingchanel", "none");
+  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"/version\">Version</a> - <a href=\"/reset\">Reset</a> - <a href=\"https://thingspeak.com/channels/";
+  liens += thingchanel;
+  liens += "\">Temp stats</a>\n";
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
   if (!wifiManager.autoConnect()) {
@@ -740,6 +850,7 @@ void setup() {
   }
   MDNS.begin("lumiere");
   server.on("/", handleRoot);
+  server.on("/setup", handleSetup);
   server.on("/leds", handleLeds);
   server.on("/flash", handleFlash);
   server.on("/reset", handleReset);
@@ -749,7 +860,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.4, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.5, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -774,7 +885,8 @@ void setup() {
                 "Added /party page for easy control of flash mode\n\n<br><br>"
                 "Added /log page to see latest ~50 visits\n\n<br><br>"
                 "Added reboot if unable to connect to internet more than 10 times to send wheather data.\n\n<br><br>"
-                "Added color persistance trough reboot using esp32 Preferences\n\n<br><br>" + liens);
+                "Added color persistance trough reboot using esp32 Preferences\n\n<br><br>"
+                "Added /setup page to set admin password and thingspeak api key and channel\n\n<br><br>" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Version request");
