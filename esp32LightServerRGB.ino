@@ -5,18 +5,17 @@
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <ESPmDNS.h>
 
 Preferences preferences;
 
 // sensors stuff
 #include <Wire.h>
 #include <DallasTemperature.h>
-#include <DHT.h>
-#include <ESPmDNS.h>
-#define ONE_WIRE_BUS 5 //dallas sensor pin
-#define DHTPIN 15 // dht sensor pin
-#define DHTTYPE DHT11 //dht type 11 or 22
-DHT dht(DHTPIN, DHTTYPE);
+#include <SimpleDHT.h>
+int pinDHT22 = 5;
+SimpleDHT22 dht22;
+#define ONE_WIRE_BUS 15 //dallas sensor pin
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 // end of sensors
@@ -59,6 +58,7 @@ int roulepastusuite = 0;
 int flashoufade = 0;
 int tstrouteur = 0;
 String logs[51];
+int usesenseur = 0;
 // end of internally used vars
 
 // stylesheet for web pages
@@ -110,9 +110,16 @@ const String css = "<style>\n"
 
 //used to set the links at the bottom of the pages (ran at setup and on /setup changes)
 void lesliens() {
-  liens = "<a href=\"/\">Acceuil</a> - <a href=\"/temp\">Temp&eacute;rature</a> - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a> - <a href=\"https://thingspeak.com/channels/";
-  liens += thingchanel;
-  liens += "\">Temp stats</a>\n";
+  liens = "<a href=\"/\">Acceuil</a>";
+  if (usesenseur == 1) {
+    liens += " - <a href=\"/temp\">Temp&eacute;rature</a>";
+  }
+  liens += " - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a>";
+  if (usesenseur == 1) {
+    liens += " - <a href=\"https://thingspeak.com/channels/";
+    liens += thingchanel;
+    liens += "\">Temp stats</a>\n";
+  }
 }
 
 // used to flash leds
@@ -206,9 +213,9 @@ void handleLog() {
     }
   }
   server.send(200, "text/plain", contenu);
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page de Logs");
+  //Serial.println("");
+  //Serial.println(addy);
+  Serial.print(".");
   videCoeur();
 }
 
@@ -280,6 +287,9 @@ void handlePitoune() {
   Serial.println("");
   Serial.println(addy);
   Serial.println("Page de logs");
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Page logs";
   if (!server.authenticate(www_username, string2char(resetpass))) {
     Serial.println("pas/mauvais password");
     return server.requestAuthentication();
@@ -306,9 +316,6 @@ void handlePitoune() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  logtourne();
-  logs[1] = addy;
-  logs[1] += " : Page logs";
 }
 
 void handleClignote() {
@@ -494,12 +501,17 @@ void handleReset() {
   Serial.println("");
   Serial.println(addy);
   Serial.println("!!! PAGE DE RESET !!!");
+  String testteu = server.arg("RESET");
+  String passme = server.arg("PASSME");
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Reset : Password=";
+  logs[1] += passme;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (!server.authenticate(www_username, string2char(resetpass))) {
     Serial.println("pas/mauvais password");
     return server.requestAuthentication();
   }
-  String testteu = server.arg("RESET");
-  String passme = server.arg("PASSME");
   if (testteu == "OUI") {
     if (passme == resetpass) {
       ouireset = 1;
@@ -539,11 +551,6 @@ void handleReset() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
-  logtourne();
-  logs[1] = addy;
-  logs[1] += " : Reset : Password=";
-  logs[1] += passme;
-  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (ouireset == 1) {
     Serial.println("Reset dans 10 secondes");
     delay(10000);
@@ -560,30 +567,38 @@ void handleSetup() {
   Serial.println("");
   Serial.println(addy);
   Serial.println("!!! PAGE DE SETUP !!!");
-  if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("pas/mauvais password");
-    return server.requestAuthentication();
-  }
   int ouireset = 0;
   String testteu = server.arg("RESET");
-  String passme = server.arg("PASSME");
+  //  String passme = server.arg("PASSME");
   String noupass = server.arg("LAPASSE");
   String lakey = server.arg("APIKEY");
   String lechan = server.arg("CHANEL");
+  String theuse = server.arg("LEUSE");
+  int leuse = 0;
+  if (theuse == "usemoi") {
+    leuse = 1;
+  } else {
+    leuse = 0;
+  }
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : Settings !";
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  if (!server.authenticate(www_username, string2char(resetpass))) {
+    Serial.println("pas/mauvais password");
+    logs[1] += " Not logged in !";
+    return server.requestAuthentication();
+  }
   if (testteu == "OUI") {
-    if (passme == resetpass) {
-      ouireset = 1;
-      if (noupass == "") {
-        ouireset = 3;
-      }
-      if (lakey == "") {
-        ouireset = 3;
-      }
-      if (lechan == "") {
-        ouireset = 3;
-      }
-    } else {
-      ouireset = 2;
+    ouireset = 1;
+    if (noupass == "") {
+      ouireset = 3;
+    }
+    if (lakey == "") {
+      ouireset = 3;
+    }
+    if (lechan == "") {
+      ouireset = 3;
     }
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -596,8 +611,14 @@ void handleSetup() {
     contenu += "<form action=\"/setup\" method=\"post\">\n"
                "<h1>Changes les r&eacute;glages ici !</h1>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
-               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
-               "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
+               "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
+    contenu += resetpass;
+    contenu += "\"><br>\n"
+               "<br>\n<input type=\"checkbox\" name=\"LEUSE\" value=\"usemoi\" ";
+    if (usesenseur == 1) {
+      contenu += "checked";
+    }
+    contenu += ">Utilise des senseurs<br>\n"
                "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
     contenu += thingkey;
     contenu += "\"><br>\n"
@@ -609,14 +630,18 @@ void handleSetup() {
   } else if (ouireset != 1) {
     contenu += "<form action=\"/setup\" method=\"post\">\n"
                "<h1>Changes les r&eacute;glages ici !</h1>"
-               "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
-               "Vieux Password :<br>\n<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n";
-    if (ouireset != 3) {
-      contenu += "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n";
-    } else {
+               "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n";
+    if (ouireset == 3) {
       contenu += "<h2>!!! LES CHAMPS NE PEUVENT PAS &Ecirc;TRE VIDE !!!</h2><br>\n";
     }
-    contenu += "Nouveau Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"\"><br>\n"
+    "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
+    contenu += resetpass;
+    contenu += "\"><br>\n"
+               "<br>\n<input type=\"checkbox\" name=\"LEUSE\" value=\"usemoi\" ";
+    if (usesenseur == 1) {
+      contenu += "checked";
+    }
+    contenu += ">Utilise des senseurs<br>\n"
                "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
     contenu += thingkey;
     contenu += "\"><br>\n"
@@ -627,12 +652,10 @@ void handleSetup() {
                "</form>\n";
     if (ouireset == 3) {
       Serial.println("CHAMP VIDE");
-    } else {
-      Serial.print("MAUVAIS PASSWORD : ");
-      Serial.println(passme);
     }
   } else if (ouireset == 1) {
     contenu += "<h1>R&eacute;glages chang&eacute;s !</h1>\n";
+    lesliens();
   }
   contenu += "<br>Dernier IP &agrave; avoir chang&eacute; la couleur :";
   contenu += dernadd;
@@ -643,15 +666,6 @@ void handleSetup() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
-  logtourne();
-  logs[1] = addy;
-  logs[1] += " : Settings : Password=";
-  if (passme != resetpass) {
-    logs[1] += passme;
-  } else {
-    logs[1] += "!!! Not showing password !!!";
-  }
-  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (ouireset == 1) {
     Serial.println("Réglages changé");
     if (noupass != resetpass) {
@@ -665,6 +679,13 @@ void handleSetup() {
       thingkey = lakey;
       Serial.print("NOUVEL API KEY : ");
       Serial.println(thingkey);
+    }
+    if (leuse != usesenseur) {
+      preferences.putUInt("usesenseur", leuse);
+      usesenseur = leuse;
+      lesliens();
+      Serial.print("NOUVEAU use les senseurs : ");
+      Serial.println(usesenseur);
     }
     if (lechan != thingchanel) {
       preferences.putString("thingchanel", lechan);
@@ -744,8 +765,15 @@ void latemp() {
     float thetemp = sensors.getTempCByIndex(0);
     char buffer[10];
     String tempC = dtostrf(thetemp, 5, 2, buffer);
-    float h = dht.readHumidity();
-    float t = dht.readTemperature();
+    delay(400);
+    float t = 0;
+    float h = 0;
+    int err = SimpleDHTErrSuccess;
+    if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
+      Serial.print("Read DHT22 failed, err=");
+      Serial.println(err);
+      h = 0;
+    }
     if (tempC != "-127.00") {
       if (tempC != "85.00") {
         Serial.print("Envoi de température et humidité: ");
@@ -756,7 +784,7 @@ void latemp() {
         webadd += thingkey;
         webadd += "&field1=";
         webadd += tempC;
-        if (h == h) { // to prevent NaN
+        if (h != 0) {
           webadd += "&field2=";
           webadd += h;
           Serial.print(h);
@@ -780,6 +808,8 @@ void latemp() {
         }
         http.end();   //Close connection
       }
+    } else {
+      Serial.println("Dallas error !");
     }
   } else {
     Serial.println("Pas de API KEY donc pas d'envoi");
@@ -790,10 +820,13 @@ void latemp() {
 void handleTemp() {
   sensors.requestTemperatures();
   float latemp = sensors.getTempCByIndex(0);
-  float h = dht.readHumidity();
-  while (latemp == -127.00) {
-    sensors.requestTemperatures();
-    latemp = sensors.getTempCByIndex(0);
+  delay(250);
+  float t = 0;
+  float h = 0;
+  int err = SimpleDHTErrSuccess;
+  if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
+    Serial.print("Read DHT22 failed, err=");
+    Serial.println(err);
   }
   String addy = server.client().remoteIP().toString();
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -873,7 +906,6 @@ void setup() {
   Serial.begin(115200);
   preferences.begin("lumiere", false);
   videCoeur();
-  dht.begin();
   ledcAttachPin(pinRouge, 1);
   ledcAttachPin(pinVerte, 2);
   ledcAttachPin(pinBleu, 3);
@@ -887,6 +919,7 @@ void setup() {
   ledcSetup(2, 12000, 8);
   ledcSetup(3, 12000, 8);
   derncoul = preferences.getString("derncoul", "#000000");
+  usesenseur =  preferences.getUInt("usesenseur", 0);
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
   b = preferences.getUInt("b", 0);
@@ -913,7 +946,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.5, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.6, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -939,7 +972,9 @@ void setup() {
                 "Added /log page to see latest ~50 visits\n\n<br><br>"
                 "Added reboot if unable to connect to internet more than 10 times to send wheather data.\n\n<br><br>"
                 "Added color persistance trough reboot using esp32 Preferences\n\n<br><br>"
-                "Added /setup page to set admin password and thingspeak api key and channel\n\n<br><br>" + liens);
+                "Added /setup page to set admin password and thingspeak api key and channel\n\n<br><br>"
+                "Added option in /setup tu use or not temperature sensors\n<br>"
+                "Changed from Adafruit DHT library to simpleDHT for better reliability\n\n<br><br>"+ liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
@@ -958,9 +993,11 @@ void setup() {
 void loop() {
   server.handleClient();
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    latemp();
+  if (usesenseur == 1) {
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+      latemp();
+    }
   }
   if (flashoufade == 1) {
     currentMillis = millis();
