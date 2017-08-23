@@ -25,6 +25,8 @@ change the password (default "admin"), sensors and thingspeak settings.
 Use it to set the led strip color (pin 12 (Red), 13 (Blue), 14 (green) on Wemos Lolin32 <br><img src="https://img1.banggood.com/thumb/view/oaupload/banggood/images/2A/7E/7c9a8c11-4420-4946-a25b-bf6994016020.jpg" />
 <br>also tested on nodeMCU-32S
 <br>
+<br>
+<br>
 it has these basic pages:
 <br>
 "/" for controling the LED strip color
