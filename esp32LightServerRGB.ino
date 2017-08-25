@@ -58,7 +58,11 @@ int roulepastusuite = 0;
 int flashoufade = 0;
 int tstrouteur = 0;
 String logs[51];
-int usesenseur = 0;
+float dernh = 0;
+float dernt = 0;
+String dernd = "0";
+int usesenseurdallas = 0;
+int usesenseurdht = 0;
 // end of internally used vars
 
 // stylesheet for web pages
@@ -108,17 +112,26 @@ const String css = "<style>\n"
 
 // functions used internally
 
-//used to set the links at the bottom of the pages (ran at setup and on /setup changes)
+//used to set the links at the bottom of the pages (ran at setup() and on /setup changes)
 void lesliens() {
+  int usesenseur = 0;
+  if (usesenseurdallas == 1) {
+    usesenseur = 1;
+  }
+  if (usesenseurdht == 1) {
+    usesenseur = 1;
+  }
   liens = "<a href=\"/\">Acceuil</a>";
   if (usesenseur == 1) {
     liens += " - <a href=\"/temp\">Temp&eacute;rature</a>";
   }
   liens += " - <a href=\"/version\">Version</a> - <a href=\"/setup\">Setup</a>";
   if (usesenseur == 1) {
-    liens += " - <a href=\"https://thingspeak.com/channels/";
-    liens += thingchanel;
-    liens += "\">Temp stats</a>\n";
+    if (thingchanel != "none") {
+      liens += " - <a href=\"https://thingspeak.com/channels/";
+      liens += thingchanel;
+      liens += "\">Temp stats</a>\n";
+    }
   }
 }
 
@@ -502,7 +515,7 @@ void handleReset() {
   Serial.println(addy);
   Serial.println("!!! PAGE DE RESET !!!");
   String testteu = server.arg("RESET");
-  String passme = server.arg("PASSME");
+  String passme = server.arg("PASSMOI");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Reset : Password=";
@@ -529,14 +542,14 @@ void handleReset() {
     contenu += "<form action=\"/reset\" method=\"post\">\n"
                "<h2>Tu veux VRAIEMENT resetter TOUT les r&eacute;glages (incluent les param&egrave;tres wifi)</h2>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
-               "<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
+               "<input type=\"password\" name=\"PASSMOI\" value=\"\"><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
   } else if (ouireset != 1) {
     contenu += "<form action=\"/reset\" method=\"post\">\n"
                "<h2>Tu veux VRAIEMENT resetter TOUT les r&eacute;glages (incluent les param&egrave;tres wifi)</h2>"
                "<input type=\"hidden\" name=\"RESET\" value=\"OUI\"><br>\n"
-               "<input type=\"password\" name=\"PASSME\" value=\"password\"><br>\n"
+               "<input type=\"password\" name=\"PASSMOI\" value=\"\"><br>\n"
                "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
@@ -567,19 +580,6 @@ void handleSetup() {
   Serial.println("");
   Serial.println(addy);
   Serial.println("!!! PAGE DE SETUP !!!");
-  int ouireset = 0;
-  String testteu = server.arg("RESET");
-  //  String passme = server.arg("PASSME");
-  String noupass = server.arg("LAPASSE");
-  String lakey = server.arg("APIKEY");
-  String lechan = server.arg("CHANEL");
-  String theuse = server.arg("LEUSE");
-  int leuse = 0;
-  if (theuse == "usemoi") {
-    leuse = 1;
-  } else {
-    leuse = 0;
-  }
   logtourne();
   logs[1] = addy;
   logs[1] += " : Settings !";
@@ -588,6 +588,21 @@ void handleSetup() {
     Serial.println("pas/mauvais password");
     logs[1] += " Not logged in !";
     return server.requestAuthentication();
+  }
+  int ouireset = 0;
+  String testteu = server.arg("RESET");
+  String noupass = server.arg("LAPASSE");
+  String lakey = server.arg("APIKEY");
+  String lechan = server.arg("CHANEL");
+  String thedallas = server.arg("LEDALLAS");
+  String thedht = server.arg("LEDHT");
+  int leusedallas = 0;
+  int leusedht = 0;
+  if (thedallas == "usedallas") {
+    leusedallas = 1;
+  }
+  if (thedht == "usedht") {
+    leusedht = 1;
   }
   if (testteu == "OUI") {
     ouireset = 1;
@@ -599,6 +614,42 @@ void handleSetup() {
     }
     if (lechan == "") {
       ouireset = 3;
+    }
+  }
+  if (ouireset == 1) {
+    Serial.println("Réglages changé");
+    if (noupass != resetpass) {
+      preferences.putString("resetpass", noupass);
+      resetpass = noupass;
+      Serial.print("NOUVEAU Password : ");
+      Serial.println(resetpass);
+    }
+    if (lakey != thingkey) {
+      preferences.putString("thingkey", lakey);
+      thingkey = lakey;
+      Serial.print("NOUVEL API KEY : ");
+      Serial.println(thingkey);
+    }
+    if (leusedallas != usesenseurdallas) {
+      preferences.putUInt("usesenseurdal", leusedallas);
+      usesenseurdallas = leusedallas;
+      lesliens();
+      Serial.print("NOUVEAU use dallas : ");
+      Serial.println(usesenseurdallas);
+    }
+    if (leusedht != usesenseurdht) {
+      preferences.putUInt("usesenseurdht", leusedht);
+      usesenseurdht = leusedht;
+      lesliens();
+      Serial.print("NOUVEAU use dht : ");
+      Serial.println(usesenseurdht);
+    }
+    if (lechan != thingchanel) {
+      preferences.putString("thingchanel", lechan);
+      thingchanel = lechan;
+      lesliens();
+      Serial.print("NOUVEAU channel : ");
+      Serial.println(thingchanel);
     }
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -614,11 +665,16 @@ void handleSetup() {
                "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
     contenu += resetpass;
     contenu += "\"><br>\n"
-               "<br>\n<input type=\"checkbox\" name=\"LEUSE\" value=\"usemoi\" ";
-    if (usesenseur == 1) {
+               "<br>\n<input type=\"checkbox\" name=\"LEDALLAS\" value=\"usedallas\" ";
+    if (usesenseurdallas == 1) {
       contenu += "checked";
     }
-    contenu += ">Utilise des senseurs<br>\n"
+    contenu += ">Utilise un senseur Dallas (field1 sur Thingspeak)"
+               "<br>\n<input type=\"checkbox\" name=\"LEDHT\" value=\"usedht\" ";
+    if (usesenseurdht == 1) {
+      contenu += "checked";
+    }
+    contenu += ">Utilise un senseur DHT22 (field2 et 3 sur Thingspeak)<br>\n"
                "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
     contenu += thingkey;
     contenu += "\"><br>\n"
@@ -637,11 +693,16 @@ void handleSetup() {
     "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
     contenu += resetpass;
     contenu += "\"><br>\n"
-               "<br>\n<input type=\"checkbox\" name=\"LEUSE\" value=\"usemoi\" ";
-    if (usesenseur == 1) {
+               "<br>\n<input type=\"checkbox\" name=\"LEDALLAS\" value=\"usedallas\" ";
+    if (usesenseurdallas == 1) {
       contenu += "checked";
     }
-    contenu += ">Utilise des senseurs<br>\n"
+    contenu += ">Utilise un senseur Dallas (field1 sur Thingspeak)"
+               "<br>\n<input type=\"checkbox\" name=\"LEDHT\" value=\"usedht\" ";
+    if (usesenseurdht == 1) {
+      contenu += "checked";
+    }
+    contenu += ">Utilise un senseur DHT22 (field2 et 3 sur Thingspeak)<br>\n"
                "ThingSpeak API Key :<br>\n<input type=\"text\" name=\"APIKEY\" value=\"";
     contenu += thingkey;
     contenu += "\"><br>\n"
@@ -666,35 +727,6 @@ void handleSetup() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
-  if (ouireset == 1) {
-    Serial.println("Réglages changé");
-    if (noupass != resetpass) {
-      preferences.putString("resetpass", noupass);
-      resetpass = noupass;
-      Serial.print("NOUVEAU Password : ");
-      Serial.println(resetpass);
-    }
-    if (lakey != thingkey) {
-      preferences.putString("thingkey", lakey);
-      thingkey = lakey;
-      Serial.print("NOUVEL API KEY : ");
-      Serial.println(thingkey);
-    }
-    if (leuse != usesenseur) {
-      preferences.putUInt("usesenseur", leuse);
-      usesenseur = leuse;
-      lesliens();
-      Serial.print("NOUVEAU use les senseurs : ");
-      Serial.println(usesenseur);
-    }
-    if (lechan != thingchanel) {
-      preferences.putString("thingchanel", lechan);
-      thingchanel = lechan;
-      lesliens();
-      Serial.print("NOUVEAU channel : ");
-      Serial.println(thingchanel);
-    }
-  }
 }
 
 // convert string 2 char*
@@ -761,55 +793,97 @@ void handleNotFound() {
 // function executed in main loop every minute to update sensors data to thingspeak.com
 void latemp() {
   if (thingkey != "none") {
-    sensors.requestTemperatures();
-    float thetemp = sensors.getTempCByIndex(0);
-    char buffer[10];
-    String tempC = dtostrf(thetemp, 5, 2, buffer);
-    delay(400);
-    float t = 0;
-    float h = 0;
-    int err = SimpleDHTErrSuccess;
-    if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
-      Serial.print("Read DHT22 failed, err=");
-      Serial.println(err);
-      h = 0;
+    HTTPClient http;
+    String webadd = "http://api.thingspeak.com/update?key=";
+    webadd += thingkey;
+    Serial.println("");
+    Serial.print("Envoi de température et humidité: ");
+    int enweille = 0;
+    if (usesenseurdallas == 1) {
+      //dallas
+      sensors.requestTemperatures();
+      float thetemp = sensors.getTempCByIndex(0);
+      char buffer[10];
+      String tempC = dtostrf(thetemp, 5, 2, buffer);
+      delay(400);
+      if (tempC != "-127.00") {
+        if (tempC != "85.00") {
+          Serial.print(tempC);
+          if (usesenseurdht == 1) {
+            Serial.print(" - ");
+          }
+          webadd += "&field1=";
+          webadd += tempC;
+          enweille = 1;
+          dernd = tempC;
+        }
+      } else {
+        Serial.println("Dallas error !");
+        if (dernd != "0") {
+          tempC = dernd;
+          webadd += "&field1=";
+          webadd += tempC;
+          enweille = 1;
+        } else {
+          enweille = 0;
+        }
+      }
     }
-    if (tempC != "-127.00") {
-      if (tempC != "85.00") {
-        Serial.print("Envoi de température et humidité: ");
-        Serial.print(tempC);
-        Serial.print(" - ");
-        HTTPClient http;
-        String webadd = "http://api.thingspeak.com/update?key=";
-        webadd += thingkey;
-        webadd += "&field1=";
-        webadd += tempC;
-        if (h != 0) {
+    if (usesenseurdht == 1) {
+      //dht
+      float t = 0;
+      float h = 0;
+      int err = SimpleDHTErrSuccess;
+      if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
+        Serial.println("");
+        Serial.print("Read DHT22 failed, err=");
+        Serial.println(err);
+        if (dernh != 0) {
+          h = dernh;
+          t = dernt;
           webadd += "&field2=";
           webadd += h;
           Serial.print(h);
           webadd += "&field3=";
           webadd += t;
+          Serial.print(" - ");
+          Serial.print(t);
+          enweille = 1;
+          dernt = t;
+          dernh = h;
         }
-        Serial.println("");
-        http.begin(webadd);
-        int httpCode = http.GET();//Send the request
-        if (httpCode > 0) {
-          Serial.println("Envoit réussit !");
-          tstrouteur = 0;
-        } else {
-          if (tstrouteur == 10) {
-            Serial.println("10 Erreur envoit ! REBOOT !");
-            ESP.restart();
-          } else {
-            Serial.println("!!! Erreur envoit !!!");
-            tstrouteur++;
-          }
-        }
-        http.end();   //Close connection
+      } else {
+        webadd += "&field2=";
+        webadd += h;
+        Serial.print(h);
+        webadd += "&field3=";
+        webadd += t;
+        Serial.print(" - ");
+        Serial.print(t);
+        enweille = 1;
+        dernt = t;
+        dernh = h;
       }
+    }
+    if (enweille == 1) {
+      Serial.println("");
+      http.begin(webadd);
+      int httpCode = http.GET();//Send the request
+      if (httpCode > 0) {
+        Serial.println("Envoit réussit !");
+        tstrouteur = 0;
+      } else {
+        if (tstrouteur == 10) {
+          Serial.println("10 Erreur envoit ! REBOOT !");
+          ESP.restart();
+        } else {
+          Serial.println("!!! Erreur envoit !!!");
+          tstrouteur++;
+        }
+      }
+      http.end();   //Close connection
     } else {
-      Serial.println("Dallas error !");
+      Serial.println("Envois pas car erreur de senseurs !");
     }
   } else {
     Serial.println("Pas de API KEY donc pas d'envoi");
@@ -818,17 +892,46 @@ void latemp() {
 
 // web page for showing sensors data
 void handleTemp() {
-  sensors.requestTemperatures();
-  float latemp = sensors.getTempCByIndex(0);
-  delay(250);
-  float t = 0;
-  float h = 0;
-  int err = SimpleDHTErrSuccess;
-  if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
-    Serial.print("Read DHT22 failed, err=");
-    Serial.println(err);
-  }
   String addy = server.client().remoteIP().toString();
+  float latemp;
+  float t;
+  float h;
+  String tempC;
+  if (usesenseurdallas == 1) {
+    sensors.requestTemperatures();
+    latemp = sensors.getTempCByIndex(0);
+    char buffer[10];
+    tempC = dtostrf(latemp, 5, 2, buffer);
+    if (tempC != "-127.00") {
+      if (tempC != "85.00") {
+        dernd = tempC;
+      } else {
+        Serial.println("Dallas error !");
+        if (dernd != "0") {
+          tempC = dernd;
+        }
+      }
+    } else {
+      Serial.println("Dallas error !");
+      if (dernd != "0") {
+        tempC = dernd;
+      }
+    }
+    delay(250);
+  }
+  if (usesenseurdht == 1) {
+    t = 0;
+    h = 0;
+    int err = SimpleDHTErrSuccess;
+    if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
+      Serial.print("Read DHT22 failed, err=");
+      Serial.println(err);
+      t = dernt;
+      h = dernh;
+    }
+    dernt = t;
+    dernh = h;
+  }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Quel chaleur</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -838,20 +941,34 @@ void handleTemp() {
   contenu += "<form action=\"/\" method=\"get\">\n"
              "<h1>Voici la temp&eacute;rature</h1>"
              "<h2>";
-  contenu += latemp;
-  contenu += "&deg;C Humidit&eacute; : ";
-  contenu += h;
+  if (usesenseurdallas == 1) {
+    contenu += tempC;
+    contenu += "&deg;C";
+  }
+  if (usesenseurdht == 1) {
+    if (usesenseurdallas == 1) {
+      contenu += " - ";
+    }
+    contenu += t;
+    contenu += "&deg;C - Humidit&eacute; : ";
+    contenu += h;
+    contenu += "&#37;";
+  }
   contenu += "</h2><br>\n";
   if (thingchanel != "none") {
-    contenu += "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-    contenu += thingchanel;
-    contenu += "/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
-               "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-    contenu += thingchanel;
-    contenu += "/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
-               "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
-    contenu += thingchanel;
-    contenu += "/charts/3?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>";
+    if (usesenseurdallas == 1) {
+      contenu += "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+      contenu += thingchanel;
+      contenu += "/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>";
+    }
+    if (usesenseurdht == 1) {
+      contenu += "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+      contenu += thingchanel;
+      contenu += "/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>"
+                 "<iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/";
+      contenu += thingchanel;
+      contenu += "/charts/3?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=30\"></iframe>";
+    }
   } else {
     contenu += "<h2>Vas dans /setup pour les r&eacute;glages thingspeak !</h2>";
   }
@@ -865,16 +982,28 @@ void handleTemp() {
   server.send(200, "text/html", contenu);
   Serial.println("");
   Serial.println(addy);
-  Serial.print("Température : ");
-  Serial.println(latemp);
-  Serial.print("Humidité : ");
-  Serial.println(h);
+  if (usesenseurdallas == 1) {
+    Serial.print("Température : ");
+    Serial.println(latemp);
+  }
+  if (usesenseurdht == 1) {
+    Serial.print("Temp2 : ");
+    Serial.println(t);
+    Serial.print("Humidité : ");
+    Serial.println(h);
+  }
   logtourne();
   logs[1] = addy;
-  logs[1] += " : Temp : Temp=";
-  logs[1] += latemp;
-  logs[1] += " : Humidite=";
-  logs[1] += h;
+  if (usesenseurdallas == 1) {
+    logs[1] += " : Temp : Temp=";
+    logs[1] += latemp;
+  }
+  if (usesenseurdht == 1) {
+    logs[1] += " : Humidite=";
+    logs[1] += h;
+    logs[1] += " : Temp2=";
+    logs[1] += t;
+  }
 }
 
 int fadecomment(int claire) {
@@ -919,7 +1048,8 @@ void setup() {
   ledcSetup(2, 12000, 8);
   ledcSetup(3, 12000, 8);
   derncoul = preferences.getString("derncoul", "#000000");
-  usesenseur =  preferences.getUInt("usesenseur", 0);
+  usesenseurdallas = preferences.getUInt("usesenseurdal", 0);
+  usesenseurdht = preferences.getUInt("usesenseurdht", 0);
   r = preferences.getUInt("r", 0);
   g = preferences.getUInt("g", 0);
   b = preferences.getUInt("b", 0);
@@ -934,6 +1064,7 @@ void setup() {
     ESP.restart();
     delay(5000);
   }
+  delay(3000);
   MDNS.begin("lumiere");
   server.on("/", handleRoot);
   server.on("/setup", handleSetup);
@@ -946,7 +1077,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.6, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.7, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -974,7 +1105,9 @@ void setup() {
                 "Added color persistance trough reboot using esp32 Preferences\n\n<br><br>"
                 "Added /setup page to set admin password and thingspeak api key and channel\n\n<br><br>"
                 "Added option in /setup tu use or not temperature sensors\n<br>"
-                "Changed from Adafruit DHT library to simpleDHT for better reliability\n\n<br><br>"+ liens);
+                "Changed from Adafruit DHT library to simpleDHT for better reliability\n\n<br><br>"
+                "Changed /setup (removed use sensors and added use dht and use dallas checkboxes)\n<br>"
+                "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
@@ -993,10 +1126,19 @@ void setup() {
 void loop() {
   server.handleClient();
   unsigned long currentMillis = millis();
-  if (usesenseur == 1) {
-    if (currentMillis - previousMillis >= interval) {
-      previousMillis = currentMillis;
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    int usesenseur = 0;
+    if (usesenseurdallas == 1) {
+      usesenseur = 1;
+    }
+    if (usesenseurdht == 1) {
+      usesenseur = 1;
+    }
+    if (usesenseur == 1) {
       latemp();
+    } else {
+      Serial.println("");
     }
   }
   if (flashoufade == 1) {
