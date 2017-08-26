@@ -12,8 +12,9 @@ Password: admin<br>
 <br>
 
 This code requires the following dependencies :<br>
-WifiManager by tzapu<br>
-simpleDHT by Winlin<br>
+WifiManager by tzapu ( currently using bbx10 fork https://github.com/bbx10/WiFiManager/tree/esp32)<br>
+WebServer by tzapu (currently using bbx10 fork https://github.com/bbx10/WebServer_tng)<br>
+simpleDHT by Winlin (builtin arduino library manager)<br>
 all other dependencies are built in the arduino ide
 or may have been manualy added will need to clean-up when esp32 official support is out
 <br>
