@@ -1,13 +1,18 @@
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <DNSServer.h>
 #include <WebServer.h>
 #include <WiFiManager.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
-#include <ESPmDNS.h>
-
 Preferences preferences;
+
+// led pins
+const uint8_t pinRouge = 12;
+const uint8_t pinVerte = 14;
+const uint8_t pinBleu = 13;
+//end of led pins
 
 // sensors stuff
 #include <Wire.h>
@@ -18,13 +23,8 @@ SimpleDHT22 dht22;
 #define ONE_WIRE_BUS 15 //dallas sensor pin
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
+DeviceAddress insideThermometer;
 // end of sensors
-
-// led pins
-uint8_t pinRouge = 12;
-uint8_t pinVerte = 14;
-uint8_t pinBleu = 13;
-//end of led pins
 
 // internally used vars
 // Some used vars, some of these are set and loaded in setup() using esp32 Preferences
@@ -382,7 +382,7 @@ void handleClignote() {
              "var myVar = \" \";\n"
              "function startDisco(){\n"
              " disco();"
-             " myVar = setInterval(function(){ disco() }, 13500);\n"
+             " myVar = setInterval(function(){ disco() }, 150000);\n"
              "}\n"
              "</script>\n"
              "</div></body></html>\n";
@@ -449,6 +449,13 @@ void handleLeds() {
 // index page
 void handleRoot() {
   String addy = server.client().remoteIP().toString();
+  String header;
+  String userAgent;
+  if (server.hasHeader("User-Agent")) {
+    userAgent = server.header("User-Agent");
+  } else {
+    userAgent = "Pas de userAgent ?";
+  }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere soit</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -494,17 +501,20 @@ void handleRoot() {
              "var myVar = \" \";\n"
              "function startDisco(){\n"
              " disco();"
-             " myVar = setInterval(function(){ disco() }, 18500);\n"
+             " myVar = setInterval(function(){ disco() }, 90000);\n"
              "}\n"
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
   Serial.println("");
   Serial.println(addy);
+  Serial.println(userAgent);
   Serial.println("Page acceuil");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Acceuil";
+  logs[1] += " : userAgent :";
+  logs[1] += userAgent;
 }
 
 //reset page
@@ -570,6 +580,7 @@ void handleReset() {
     preferences.clear();
     WiFiManager wifiManager;
     wifiManager.resetSettings();
+    Serial.println("Bip Bip... Mémoire effacée !");
     ESP.restart();
   }
 }
@@ -739,9 +750,17 @@ char* string2char(String command) {
 
 // 404 not found page
 void handleNotFound() {
+  String header;
   String addy = server.client().remoteIP().toString();
   Serial.println("");
+  String userAgent;
   Serial.println(addy);
+  if (server.hasHeader("User-Agent")) {
+    userAgent = server.header("User-Agent");
+  } else {
+    userAgent = "Pas de userAgent ?";
+  }
+  Serial.println(userAgent);
   String htmlmessage = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   htmlmessage += "<meta charset=\"UTF-8\" />\n<title>404 Not found</title>\n"
                  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -783,6 +802,8 @@ void handleNotFound() {
   logs[1] = addy;
   logs[1] += " : 404 : URI=";
   logs[1] += uriL;
+  logs[1] += " : UserAgent=";
+  logs[1] += userAgent;
   logs[1] += " : Methode=";
   logs[1] += methodeL;
   logs[1] += " ";
@@ -816,14 +837,32 @@ void latemp() {
           webadd += tempC;
           enweille = 1;
           dernd = tempC;
+        } else {
+          Serial.println("Erreure du senseur dallas 85 !");
+          if (dernd != "0") {
+            tempC = dernd;
+            webadd += "&field1=";
+            webadd += tempC;
+            enweille = 1;
+            Serial.print(tempC);
+            if (usesenseurdht == 1) {
+              Serial.print(" - ");
+            }
+          } else {
+            enweille = 0;
+          }
         }
       } else {
-        Serial.println("Dallas error !");
+        Serial.println("Erreure du senseur dallas -127 !");
         if (dernd != "0") {
           tempC = dernd;
           webadd += "&field1=";
           webadd += tempC;
           enweille = 1;
+          Serial.print(tempC);
+          if (usesenseurdht == 1) {
+            Serial.print(" - ");
+          }
         } else {
           enweille = 0;
         }
@@ -836,7 +875,7 @@ void latemp() {
       int err = SimpleDHTErrSuccess;
       if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
         Serial.println("");
-        Serial.print("Read DHT22 failed, err=");
+        Serial.print("Erreure de lecture DHT, err=");
         Serial.println(err);
         if (dernh != 0) {
           h = dernh;
@@ -868,7 +907,7 @@ void latemp() {
     if (enweille == 1) {
       Serial.println("");
       http.begin(webadd);
-      int httpCode = http.GET();//Send the request
+      int httpCode = http.GET();
       if (httpCode > 0) {
         Serial.println("Envoit réussit !");
         tstrouteur = 0;
@@ -893,6 +932,9 @@ void latemp() {
 // web page for showing sensors data
 void handleTemp() {
   String addy = server.client().remoteIP().toString();
+  Serial.println("");
+  Serial.println(addy);
+  Serial.println("Page température");
   float latemp;
   float t;
   float h;
@@ -906,13 +948,13 @@ void handleTemp() {
       if (tempC != "85.00") {
         dernd = tempC;
       } else {
-        Serial.println("Dallas error !");
+        Serial.println("Erreure du senseur dallas 85 !");
         if (dernd != "0") {
           tempC = dernd;
         }
       }
     } else {
-      Serial.println("Dallas error !");
+      Serial.println("Erreure du senseur dallas -127 !");
       if (dernd != "0") {
         tempC = dernd;
       }
@@ -924,7 +966,7 @@ void handleTemp() {
     h = 0;
     int err = SimpleDHTErrSuccess;
     if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
-      Serial.print("Read DHT22 failed, err=");
+      Serial.print("Erreure de lecture DHT, err=");
       Serial.println(err);
       t = dernt;
       h = dernh;
@@ -980,8 +1022,6 @@ void handleTemp() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
-  Serial.println("");
-  Serial.println(addy);
   if (usesenseurdallas == 1) {
     Serial.print("Température : ");
     Serial.println(latemp);
@@ -1077,7 +1117,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.7, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.8, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -1107,7 +1147,9 @@ void setup() {
                 "Added option in /setup tu use or not temperature sensors\n<br>"
                 "Changed from Adafruit DHT library to simpleDHT for better reliability\n\n<br><br>"
                 "Changed /setup (removed use sensors and added use dht and use dallas checkboxes)\n<br>"
-                "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>" + liens);
+                "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>"
+                "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
+                "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br>"+ liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
@@ -1116,11 +1158,16 @@ void setup() {
     logs[1] += " : Page de version";
   });
   server.onNotFound(handleNotFound);
+  const char * headerkeys[] = {"User-Agent"} ;//peut ajouter autres si besoin eg {"User-Agent", "Cookie"}
+  size_t headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+  server.collectHeaders(headerkeys, headerkeyssize );
   server.begin();
   Serial.println("Serveur web démaré");
-  delay(100);
-  MDNS.addService("http", "tcp", 80);
+  delay(500);
+  MDNS.addService("_http", "_tcp", 80);
+  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Impossible de trouver l'adresse du senseur 0");
   sensors.begin();
+  sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
 }
 
 void loop() {
