@@ -3,7 +3,7 @@
 A simple to use esp32 LED strip, wifi enabled, controler with option for temperature sensor and thingspeak
 <br>
 if enabled in /setup page<br>
-It uses thingspeak for temperature data logging from a (ky-001 on pin 15) sensor and a (ky-015 on pin 5)
+It uses thingspeak for temperature data logging from a (ky-001 "dallas" on pin 15) sensor and a (DHT22 on pin 5)
 <br>
 
 Default settings:<br>
