@@ -52,4 +52,6 @@ it has these basic pages:
 "/setup" to set your password, thingspeak API KEY and channel #.
 
 
-Any input are welcome !
+Any input are welcome !<br>
+You can see most of it in action here : <a href="http://008.ddns.net:8080">http://008.ddns.net:8080</a>
+(/setup and /log are password locked)
