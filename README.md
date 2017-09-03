@@ -60,7 +60,7 @@ You can see most of it in action here : <a href="http://008.ddns.net:8080">http:
 <h2>Screenshots :</h2>
 
 At first run you connect to the device AP<br>
-<img src="https://photos.app.goo.gl/nmHD14WcJuhr3TsN2">
+<img src="https://lh3.googleusercontent.com/9esbqNh3DMHfB7AhGj44R5IvAgRvviSabrC_yWQwcvkpc_WvY00G9T9wp_g3euGfw8EhRS55d2lof6VjoOdB9hh63joVqkgyE7CQvtgtHQNwjWA-Uw2mPPwM0drnLL4kkIZ2aHCJonyZl81evWFuE3_yleSjr8AK6bmjGXZCcaMIX-TMrSkQ9PtiO0OpNcooEfVugCi_5cXB7S-NQs4qGLlzGPSW-fbDX_ez2zm1NiROf-WMvIweOhnOjMgffkV8byCdGNeQN6t_oiAfrdLRsmWoxXuyref4Zz6OHNouso-kIbsc09HvIZZfDWKMzgSEZTuvKUy9qB-WKzDAC-4syEmbx6UwMuMK_tN5Pt8RPq2xRFGFb-xGmsZ4G1U2ra0MeZ8xpLP6ZzpPtELjEGEnKVS2kIGrqBLk5o3Gm8nuWiEkF5O9_572gze0JOCnLetmzwnxJ40p0EqBJlOSuzsWwxg4l-KG85h6FbahQMHLWpQNeligYzPgvLRxapcwesP3p2WscNdQJ51tWyb3KjQv-uiHpR33ri6aOXygmUw3k_Bkk6ILExCArVhiE26mhKKWdbRXhma7gvUM2ZshHT0ouTSfOViX4lpsGIvHtP7o_rSGPWakOykdzn3RyMACBuRLe2fC0dVy2sIpIEGiphzqJY2qqAIaQfdzIm7lX2ndPc8LtxI=w519-h923-no">
 <br>
 and get this:
 <br>
