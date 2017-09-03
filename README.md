@@ -55,3 +55,37 @@ it has these basic pages:
 Any input are welcome !<br>
 You can see most of it in action here : <a href="http://008.ddns.net:8080">http://008.ddns.net:8080</a>
 (/setup and /log are password locked)
+
+
+<h2>Screenshots :</h2>
+
+At first run you connect to the device AP<br>
+<img src="https://photos.app.goo.gl/nmHD14WcJuhr3TsN2">
+<br>
+and get this:
+<br>
+<img src="https://photos.app.goo.gl/2BSxn5Z2Vq8vsMmz1">
+<br>
+You configure the device for your home network<br>
+<img src="https://photos.app.goo.gl/4z9ecZBzFJIWrg4v2">
+<br>
+You save the settings and then the device tries to connect to your network<br>
+<img src="https://photos.app.goo.gl/LGaA3rqBsiweauk73">
+<br>
+Make sure your phone/computer is re-connected to your home network<br>
+<img stc="https://photos.app.goo.gl/MzvfvUlv9sLXgkI32">
+<br>
+You can then use <a href="http://lumiere.local">http://lumiere.local</a> to connect to your device<br>
+<img src="https://photos.app.goo.gl/bvC9mtouJJyl4nyz2">
+Use the <a href="http://lumiere.local/setup">http://lumiere.local/setup</a> page to configure your thingspeak API key and channel #<br>
+<img src="https://photos.app.goo.gl/nSFJ4bynAaK1DyBl2">
+<br>
+From there you can also go to the reset page wich reset ALL settings like new<br>
+<img src="https://photos.app.goo.gl/aEOdo0Jo2KZVg2jE3">
+<br>
+From the /setup page you also have a link to the /log page wich let's you see the latest 50 visitors<br>
+<img src="https://photos.app.goo.gl/wRcfQcYr6XSPXHqg2">
+<br>
+And the /party page wich lets you set flash color, duration in ms, and # of flashes<br>
+<img src="https://photos.app.goo.gl/OgPpP4BYzDmBD4gA2">
+<br>
