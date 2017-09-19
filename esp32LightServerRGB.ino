@@ -67,49 +67,43 @@ int usesenseurdht = 0;
 
 // stylesheet for web pages
 const String css = "<style>\n"
-                   ".color {\n"
+                   ".color, button, .button1{\n"
+                   "border: none;\n"
+                   "text-decoration: none;\n"
+                   "display: inline-block;\n"
+                   "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
+                   "transition-duration: 0.4s\n"
+                   "text-align: center;\n"
+                   "font-size: 24px;\n"
                    "width:80%;\n"
+                   "}\n"
+                   ".color {\n"
                    "height:64px;\n"
                    "padding:0px;\n"
                    "margin:0px;\n"
-                   "border: none;\n"
-                   "text-decoration: none;\n"
-                   "display: inline-block;\n"
-                   "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
-                   "transition-duration: 0.4s\n}\n"
+                   "}\n"
                    ".button1 {\n"
                    "background-color: #4CAF50;\n"
-                   "border: none;\n"
                    "color: white;\n"
                    "padding: 15px 32px;\n"
-                   "text-align: center;\n"
-                   "text-decoration: none;\n"
-                   "display: inline-block;\n"
-                   "font-size: 24px;\n"
                    "margin: 4px 2px;\n"
-                   "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
-                   "transition-duration: 0.4s; width: 80%;\n}\n"
+                   "}\n"
                    "button {\n"
                    "background-color: #AC0050;\n"
-                   "border: none;\n"
                    "color: white;\n"
                    "padding: 15px 32px;\n"
-                   "text-align: center;\n"
-                   "text-decoration: none;\n"
-                   "display: inline-block;\n"
                    "font-size: 24px;\n"
                    "margin: 4px 2px;\n"
-                   "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
-                   "transition-duration: 0.4s; width: 80%;\n}\n"
+                   "}\n"
                    "button:hover,.color:hover, .button1:hover {\n"
                    "box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);\n}\n"
-                   "div#logs {"
-                   "width: 100%;"
-                   "height: 450px;"
-                   "font-size: 12px;"
-                   "overflow: auto;"
-                   "text-align:left;"
-                   "}"
+                   "div#logs {\n"
+                   "width: 100%;\n"
+                   "height: 450px;\n"
+                   "font-size: 12px;\n"
+                   "overflow: auto;\n"
+                   "text-align:left;\n"
+                   "}\n"
                    "</style>\n";
 // end of stylesheet for web pages
 
@@ -252,6 +246,9 @@ void handleFlash() {
   Serial.println(attendF);
   Serial.print("Fois - ");
   Serial.println(flashfois / 2);
+  if (attendF == 0){
+    flashfois = 0;
+  }
   if (testteu != 0) {
     derncoul = testteu;
     long number = strtol( &testteu[1], NULL, 16);
@@ -1111,7 +1108,7 @@ void lumiereloop() {
 
 void loop1(void *pvParameters) {
   while (1) {
-    if ( r != rouge || g != vert || b != bleu) {
+    if ( r != rouge || g != vert || b != bleu || flashoufade != 0 ) {
       lumiereloop();
       vTaskDelay( 7 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     } else {
@@ -1169,7 +1166,7 @@ void setup() {
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.8, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V2.9, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -1201,7 +1198,9 @@ void setup() {
                 "Changed /setup (removed use sensors and added use dht and use dallas checkboxes)\n<br>"
                 "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>"
                 "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
-                "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br>" + liens);
+                "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br><br>"
+                "Moved fading to it's own core and loop<br>\n"
+                "Cleaned CSS and changed color selector to match buttons" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
