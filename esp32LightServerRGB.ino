@@ -1071,9 +1071,8 @@ void videCoeur() {
   }
 }
 void lumiereloop() {
-  unsigned long currentMillis;
+  unsigned long currentMillis = millis();
   if (flashoufade == 1) {
-    currentMillis = millis();
     if (currentMillis - previousMillisf >= attendF) {
       flashfunk();
       previousMillisf = currentMillis;
@@ -1110,9 +1109,9 @@ void loop1(void *pvParameters) {
   while (1) {
     if ( r != rouge || g != vert || b != bleu || flashoufade != 0 ) {
       lumiereloop();
-      vTaskDelay( 7 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+      vTaskDelay( 3 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     } else {
-      vTaskDelay( 20 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+      vTaskDelay( 50 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     }
   }
 }
@@ -1142,7 +1141,7 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
-  xTaskCreatePinnedToCore(loop1, "loop1", 4096, NULL, 3, NULL, 0);
+  xTaskCreatePinnedToCore(loop1, "loop1", 2048, NULL, 0, NULL, 0);
   lesliens();
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
@@ -1162,10 +1161,10 @@ void setup() {
       Serial.println(ereur);
       delay(200);
       if (sensors.getAddress(insideThermometer, 0)) {
-        ereur = 5;
+        ereur = 6;
         marchetu = 0;
       }
-    } while (ereur <= 5);
+    } while (ereur < 5);
     if (marchetu != 0) {
       Serial.println("Erreure senseurs 0 non fonctionnel !");
     }
