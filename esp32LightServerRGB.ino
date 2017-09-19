@@ -246,7 +246,7 @@ void handleFlash() {
   Serial.println(attendF);
   Serial.print("Fois - ");
   Serial.println(flashfois / 2);
-  if (attendF == 0){
+  if (attendF == 0) {
     flashfois = 0;
   }
   if (testteu != 0) {
@@ -1142,7 +1142,7 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
-  xTaskCreatePinnedToCore(loop1, "loop1", 4096, NULL, 10, NULL, 0);
+  xTaskCreatePinnedToCore(loop1, "loop1", 4096, NULL, 3, NULL, 0);
   lesliens();
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
@@ -1153,7 +1153,24 @@ void setup() {
     ESP.restart();
     delay(5000);
   }
-  delay(3000);
+  if (!sensors.getAddress(insideThermometer, 0)) {
+    int ereur = 0;
+    int marchetu = 1;
+    do { // 5 retry
+      ereur++;
+      Serial.print("Erreur senseur 0 essai #");
+      Serial.println(ereur);
+      delay(200);
+      if (sensors.getAddress(insideThermometer, 0)) {
+        ereur = 5;
+        marchetu = 0;
+      }
+    } while (ereur <= 5);
+    if (marchetu != 0) {
+      Serial.println("Erreure senseurs 0 non fonctionnel !");
+    }
+  }
+  sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
   MDNS.begin("lumiere");
   server.on("/", handleRoot);
   server.on("/setup", handleSetup);
@@ -1200,7 +1217,7 @@ void setup() {
                 "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
                 "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br><br>"
                 "Moved fading to it's own core and loop<br>\n"
-                "Cleaned CSS and changed color selector to match buttons" + liens);
+                "Cleaned CSS and changed color selector to match buttons<br>\n" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
@@ -1214,29 +1231,7 @@ void setup() {
   server.collectHeaders(headerkeys, headerkeyssize );
   server.begin();
   Serial.println("Serveur web démaré");
-  delay(500);
   MDNS.addService("_http", "_tcp", 80);
-  if (!sensors.getAddress(insideThermometer, 0)) {
-    int ereur;
-    int marchetu;
-    while (ereur != 5) { // 5 retry
-      ereur++;
-      Serial.print("Erreur senseur 0 essai #");
-      Serial.println(ereur);
-      delay(200);
-      if (!sensors.getAddress(insideThermometer, 0)) {
-        marchetu = 1;
-      } else {
-        ereur = 5;
-        marchetu = 0;
-      }
-    }
-    if (marchetu != 0) {
-      Serial.println("Erreure senseurs 0 non fonctionnel !");
-    } else {
-      sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
-    }
-  }
 }
 
 void loop() {
