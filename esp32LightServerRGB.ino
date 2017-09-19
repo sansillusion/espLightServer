@@ -68,10 +68,15 @@ int usesenseurdht = 0;
 // stylesheet for web pages
 const String css = "<style>\n"
                    ".color {\n"
-                   "width:50%;\n"
-                   "height:80px;\n"
-                   "padding:5px;\n"
-                   "margin:10px;\n}\n"
+                   "width:80%;\n"
+                   "height:64px;\n"
+                   "padding:0px;\n"
+                   "margin:0px;\n"
+                   "border: none;\n"
+                   "text-decoration: none;\n"
+                   "display: inline-block;\n"
+                   "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
+                   "transition-duration: 0.4s\n}\n"
                    ".button1 {\n"
                    "background-color: #4CAF50;\n"
                    "border: none;\n"
@@ -84,8 +89,6 @@ const String css = "<style>\n"
                    "margin: 4px 2px;\n"
                    "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
                    "transition-duration: 0.4s; width: 80%;\n}\n"
-                   ".button1:hover {\n"
-                   "box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);\n}\n"
                    "button {\n"
                    "background-color: #AC0050;\n"
                    "border: none;\n"
@@ -98,7 +101,7 @@ const String css = "<style>\n"
                    "margin: 4px 2px;\n"
                    "cursor: pointer; -webkit-transition-duration: 0.4s;\n"
                    "transition-duration: 0.4s; width: 80%;\n}\n"
-                   "button:hover {\n"
+                   "button:hover,.color:hover, .button1:hover {\n"
                    "box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);\n}\n"
                    "div#logs {"
                    "width: 100%;"
@@ -1070,6 +1073,52 @@ void videCoeur() {
     logs[i] = "&hearts; vide";
   }
 }
+void lumiereloop() {
+  unsigned long currentMillis;
+  if (flashoufade == 1) {
+    currentMillis = millis();
+    if (currentMillis - previousMillisf >= attendF) {
+      flashfunk();
+      previousMillisf = currentMillis;
+    }
+  } else {
+    if (r != rouge) {
+      currentMillis = millis();
+      if (currentMillis - previousMillisr >= attendR) {
+        fadeR();
+        previousMillisr = currentMillis;
+        attendR = fadecomment(rouge);
+      }
+    }
+    if (g != vert) {
+      currentMillis = millis();
+      if (currentMillis - previousMillisg >= attendG) {
+        fadeG();
+        previousMillisg = currentMillis;
+        attendG = fadecomment(vert);
+      }
+    }
+    if (b != bleu) {
+      currentMillis = millis();
+      if (currentMillis - previousMillisb >= attendB) {
+        fadeB();
+        previousMillisb = currentMillis;
+        attendB = fadecomment(bleu);
+      }
+    }
+  }
+}
+
+void loop1(void *pvParameters) {
+  while (1) {
+    if ( r != rouge || g != vert || b != bleu) {
+      lumiereloop();
+      vTaskDelay( 7 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+    } else {
+      vTaskDelay( 20 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
@@ -1096,9 +1145,12 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
+  xTaskCreatePinnedToCore(loop1, "loop1", 4096, NULL, 10, NULL, 0);
   lesliens();
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
+  WiFi.disconnect(); // pour prevenir de bugs de power et autres
+  delay(1000);
   if (!wifiManager.autoConnect()) {
     delay(3000);
     ESP.restart();
@@ -1149,7 +1201,7 @@ void setup() {
                 "Changed /setup (removed use sensors and added use dht and use dallas checkboxes)\n<br>"
                 "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>"
                 "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
-                "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br>"+ liens);
+                "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br>" + liens);
     Serial.println("");
     Serial.println(addy);
     Serial.println("Page de Version");
@@ -1165,9 +1217,27 @@ void setup() {
   Serial.println("Serveur web démaré");
   delay(500);
   MDNS.addService("_http", "_tcp", 80);
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Impossible de trouver l'adresse du senseur 0");
-  sensors.begin();
-  sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
+  if (!sensors.getAddress(insideThermometer, 0)) {
+    int ereur;
+    int marchetu;
+    while (ereur != 5) { // 5 retry
+      ereur++;
+      Serial.print("Erreur senseur 0 essai #");
+      Serial.println(ereur);
+      delay(200);
+      if (!sensors.getAddress(insideThermometer, 0)) {
+        marchetu = 1;
+      } else {
+        ereur = 5;
+        marchetu = 0;
+      }
+    }
+    if (marchetu != 0) {
+      Serial.println("Erreure senseurs 0 non fonctionnel !");
+    } else {
+      sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
+    }
+  }
 }
 
 void loop() {
@@ -1184,40 +1254,6 @@ void loop() {
     }
     if (usesenseur == 1) {
       latemp();
-    } else {
-      Serial.println("");
-    }
-  }
-  if (flashoufade == 1) {
-    currentMillis = millis();
-    if (currentMillis - previousMillisf >= attendF) {
-      flashfunk();
-      previousMillisf = currentMillis;
-    }
-  } else {
-    if (r != rouge) {
-      currentMillis = millis();
-      if (currentMillis - previousMillisr >= attendR) {
-        fadeR();
-        previousMillisr = currentMillis;
-        attendR = fadecomment(rouge);
-      }
-    }
-    if (g != vert) {
-      currentMillis = millis();
-      if (currentMillis - previousMillisg >= attendG) {
-        fadeG();
-        previousMillisg = currentMillis;
-        attendG = fadecomment(vert);
-      }
-    }
-    if (b != bleu) {
-      currentMillis = millis();
-      if (currentMillis - previousMillisb >= attendB) {
-        fadeB();
-        previousMillisb = currentMillis;
-        attendB = fadecomment(bleu);
-      }
     }
   }
 }
