@@ -1,17 +1,23 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <WiFiUdp.h>
 #include <DNSServer.h>
 #include <WebServer.h>
 #include <WiFiManager.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <ArduinoOTA.h>
+#include "BluetoothSerial.h"
+
 Preferences preferences;
 
+BluetoothSerial SerialBT;
+
 // led pins
-const uint8_t pinRouge = 12;
-const uint8_t pinVerte = 14;
-const uint8_t pinBleu = 13;
+const uint8_t pinRouge = 14;
+const uint8_t pinVerte = 13;
+const uint8_t pinBleu = 12;
 //end of led pins
 
 // sensors stuff
@@ -37,9 +43,9 @@ String thingchanel = "";
 String liens = "";
 String derncoul = "";
 WebServer server(80);
-long r = 0;
-long g = 0;
-long b = 0;
+int r = 0;
+int g = 0;
+int b = 0;
 int rouge = 0;
 int vert = 0;
 int bleu = 0;
@@ -63,6 +69,8 @@ float dernt = 0;
 String dernd = "0";
 int usesenseurdallas = 0;
 int usesenseurdht = 0;
+int errdallas = 0;
+int errdht = 0;
 // end of internally used vars
 
 // stylesheet for web pages
@@ -132,6 +140,20 @@ void lesliens() {
   }
 }
 
+
+//Serial output (BT+SERIAL)
+void logeur(String mess){
+  SerialBT.print(mess);
+  delay(20);
+  Serial.print(mess);
+}
+
+void logeurln(String mess){
+  SerialBT.println(mess);
+  delay(20);
+  Serial.println(mess);
+}
+
 // used to flash leds
 void flashfunk() {
   if (flashrendu <= flashfois) {
@@ -163,7 +185,7 @@ void flashfunk() {
     g = vert;
     flashoufade = 0;
     flashrendu = 0;
-    Serial.println("Flash fini");
+    logeur("Flash finished");
   }
 }
 
@@ -211,7 +233,7 @@ void logtourne() {
 // web page to handle flashing of leds (color/delay/number of flashes)
 void handleLog() {
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("pas/mauvais password");
+    logeurln("no/bad password");
     return server.requestAuthentication();
   }
   String addy = server.client().remoteIP().toString();
@@ -223,9 +245,7 @@ void handleLog() {
     }
   }
   server.send(200, "text/plain", contenu);
-  //Serial.println("");
-  //Serial.println(addy);
-  Serial.print(".");
+  logeur(".");
   videCoeur();
 }
 
@@ -238,14 +258,16 @@ void handleFlash() {
   String flashnombre = server.arg("FOIS");
   flashfois = flashnombre.toInt();
   flashfois = flashfois * 2;
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Flash");
-  Serial.println(testteu);
-  Serial.print("Delais - ");
-  Serial.println(attendF);
-  Serial.print("Fois - ");
-  Serial.println(flashfois / 2);
+  logeurln("");
+  logeurln(addy);
+  logeurln("Flash");
+  logeurln(testteu);
+  String sortie = "Delay - ";
+  sortie += attend;
+  logeurln(sortie);
+  sortie = "Times - ";
+  sortie += flashnombre;
+  logeurln(sortie);
   if (attendF == 0) {
     flashfois = 0;
   }
@@ -259,12 +281,15 @@ void handleFlash() {
     preferences.putUInt("r", r);
     preferences.putUInt("g", g);
     preferences.putUInt("b", b);
-    Serial.print("Rouge = ");
-    Serial.println(r);
-    Serial.print("Vert = ");
-    Serial.println(g);
-    Serial.print("Bleu = ");
-    Serial.println(b);
+    sortie = "Red = ";
+    sortie += r;
+    logeurln(sortie);
+    sortie = "Green = ";
+    sortie += g;
+    logeurln(sortie);
+    sortie = "Blue = ";
+    sortie += b;
+    logeurln(sortie);
     dernadd = addy;
     flashoufade = 1;
     flashrendu = 0;
@@ -297,14 +322,14 @@ void handleFlash() {
 // web page for flash mode
 void handlePitoune() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page de logs");
+  logeurln("");
+  logeurln(addy);
+  logeurln("Logs page");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Page logs";
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("pas/mauvais password");
+    logeurln("no/bad password");
     return server.requestAuthentication();
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -387,21 +412,57 @@ void handleClignote() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page flash");
+  logeurln("");
+  logeurln(addy);
+  logeurln("Flashing page");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Page Flash";
 }
 
+// web page to see # of sensor errors
+void handleDebug() {
+  String addy = server.client().remoteIP().toString();
+  logeurln("");
+  logeurln(addy);
+  logeurln("Debug");
+  logeur("#ErrDallas : ");
+  logeur(String(errdallas));
+  logeur(" - #ErrDht : ");
+  logeurln(String(errdht));
+  String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
+  contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere Debug</title>\n"
+             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
+  contenu += css;
+  contenu += "</head>\n<body>\n"
+             "<div style=\"text-align:center;width:100%;\">\n"
+             "<h1>Debug des senseurs</h1>\n"
+             "Nombres d'erreurs du senseur Dallas : ";
+  contenu += errdallas;
+  contenu += "<br>\n"
+             "Nombres d'erreurs du senseur DHT : ";
+  contenu += errdht;
+  contenu += "<br><br>\n";
+  contenu += liens;
+  contenu += "</div>\n"
+             "</body></html>\n";
+  server.send(200, "text/html", contenu);
+  logtourne();
+  logs[1] = addy;
+  logs[1] += " : ErrDalas=";
+  logs[1] += errdallas;
+  logs[1] += " : ErrDHT=";
+  logs[1] += errdht;
+  logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+}
+
 // web page to handle leds fading
 void handleLeds() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
+  logeurln("");
+  logeurln(addy);
   String testteu = server.arg("COULEUR");
-  Serial.println(testteu);
+  logeurln(testteu);
   if (testteu != 0) {
     derncoul = testteu;
     long number = strtol( &testteu[1], NULL, 16);
@@ -410,22 +471,25 @@ void handleLeds() {
     b = number & 0xFF;
     preferences.putString("derncoul", derncoul);
     if (r != rouge) {
-      Serial.print("Rouge = ");
-      Serial.println(r);
+      String sortie = "Red = ";
+      sortie += r;
+      logeurln(sortie);
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("r", r);
     }
     if (g != vert) {
-      Serial.print("Vert = ");
-      Serial.println(g);
+      String sortie = "Green = ";
+      sortie += g;
+      logeurln(sortie);
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("g", g);
     }
     if (b != bleu) {
-      Serial.print("Bleu = ");
-      Serial.println(b);
+      String sortie = "Blue = ";
+      sortie += b;
+      logeurln(sortie);
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("b", b);
@@ -450,11 +514,11 @@ void handleLeds() {
 void handleRoot() {
   String addy = server.client().remoteIP().toString();
   String header;
-  String userAgent;
-  if (server.hasHeader("User-Agent")) {
-    userAgent = server.header("User-Agent");
+  String referer;
+  if (server.hasHeader("Referer")) {
+    referer = server.header("Referer");
   } else {
-    userAgent = "Pas de userAgent ?";
+    referer = "Direct ?";
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere soit</title>\n"
@@ -506,24 +570,24 @@ void handleRoot() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println(userAgent);
-  Serial.println("Page acceuil");
+  logeurln("");
+  logeurln(addy);
+  logeurln(referer);
+  logeurln("Home page");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Acceuil";
-  logs[1] += " : userAgent :";
-  logs[1] += userAgent;
+  logs[1] += " : referer :";
+  logs[1] += referer;
 }
 
 //reset page
 void handleReset() {
   int ouireset = 0;
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("!!! PAGE DE RESET !!!");
+  logeurln("");
+  logeurln(addy);
+  logeurln("!!! RESET PAGE !!!");
   String testteu = server.arg("RESET");
   String passme = server.arg("PASSMOI");
   logtourne();
@@ -532,7 +596,7 @@ void handleReset() {
   logs[1] += passme;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("pas/mauvais password");
+    logeurln("no/bad password");
     return server.requestAuthentication();
   }
   if (testteu == "OUI") {
@@ -563,8 +627,8 @@ void handleReset() {
                "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
-    Serial.print("MAUVAIS PASSWORD : ");
-    Serial.println(passme);
+    logeur("BAD PASSWORD : ");
+    logeurln(passme);
   } else if (ouireset == 1) {
     contenu += "<h1>Reset Dans 10 Secondes</h1>\n";
   }
@@ -575,12 +639,12 @@ void handleReset() {
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
   if (ouireset == 1) {
-    Serial.println("Reset dans 10 secondes");
+    logeurln("Reset in 10 seconds");
     delay(10000);
     preferences.clear();
     WiFiManager wifiManager;
     wifiManager.resetSettings();
-    Serial.println("Bip Bip... Mémoire effacée !");
+    logeurln("Bip Bip... Memory erased, what is my purpose ?");
     ESP.restart();
   }
 }
@@ -588,15 +652,15 @@ void handleReset() {
 //setup page
 void handleSetup() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("!!! PAGE DE SETUP !!!");
+  logeurln("");
+  logeurln(addy);
+  logeurln("!!! SETUP PAGE !!!");
   logtourne();
   logs[1] = addy;
   logs[1] += " : Settings !";
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    Serial.println("pas/mauvais password");
+    logeurln("no/bad password");
     logs[1] += " Not logged in !";
     return server.requestAuthentication();
   }
@@ -628,39 +692,39 @@ void handleSetup() {
     }
   }
   if (ouireset == 1) {
-    Serial.println("Réglages changé");
+    logeurln("Settings changed");
     if (noupass != resetpass) {
       preferences.putString("resetpass", noupass);
       resetpass = noupass;
-      Serial.print("NOUVEAU Password : ");
-      Serial.println(resetpass);
+      logeur("NEW Password : ");
+      logeurln(resetpass);
     }
     if (lakey != thingkey) {
       preferences.putString("thingkey", lakey);
       thingkey = lakey;
-      Serial.print("NOUVEL API KEY : ");
-      Serial.println(thingkey);
+      logeur("NEW API KEY : ");
+      logeurln(thingkey);
     }
     if (leusedallas != usesenseurdallas) {
       preferences.putUInt("usesenseurdal", leusedallas);
       usesenseurdallas = leusedallas;
       lesliens();
-      Serial.print("NOUVEAU use dallas : ");
-      Serial.println(usesenseurdallas);
+      logeur("NEW dallas setting : ");
+      logeurln(String(usesenseurdallas));
     }
     if (leusedht != usesenseurdht) {
       preferences.putUInt("usesenseurdht", leusedht);
       usesenseurdht = leusedht;
       lesliens();
-      Serial.print("NOUVEAU use dht : ");
-      Serial.println(usesenseurdht);
+      logeur("NEW dht setting : ");
+      logeurln(String(usesenseurdht));
     }
     if (lechan != thingchanel) {
       preferences.putString("thingchanel", lechan);
       thingchanel = lechan;
       lesliens();
-      Serial.print("NOUVEAU channel : ");
-      Serial.println(thingchanel);
+      logeur("NEW channel : ");
+      logeurln(thingchanel);
     }
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -723,7 +787,7 @@ void handleSetup() {
                "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
                "</form>\n";
     if (ouireset == 3) {
-      Serial.println("CHAMP VIDE");
+      logeurln("EMPTY FIELD");
     }
   } else if (ouireset == 1) {
     contenu += "<h1>R&eacute;glages chang&eacute;s !</h1>\n";
@@ -752,15 +816,15 @@ char* string2char(String command) {
 void handleNotFound() {
   String header;
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
+  logeurln("");
   String userAgent;
-  Serial.println(addy);
+  logeurln(addy);
   if (server.hasHeader("User-Agent")) {
     userAgent = server.header("User-Agent");
   } else {
     userAgent = "Pas de userAgent ?";
   }
-  Serial.println(userAgent);
+  logeurln(userAgent);
   String htmlmessage = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   htmlmessage += "<meta charset=\"UTF-8\" />\n<title>404 Not found</title>\n"
                  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -797,7 +861,7 @@ void handleNotFound() {
     argsL += ": " + server.argName(i) + "=" + server.arg(i) + " ";
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
-  Serial.print(message);
+  logeur(message);
   logtourne();
   logs[1] = addy;
   logs[1] += " : 404 : URI=";
@@ -817,8 +881,8 @@ void latemp() {
     HTTPClient http;
     String webadd = "http://api.thingspeak.com/update?key=";
     webadd += thingkey;
-    Serial.println("");
-    Serial.print("Envoi de température et humidité: ");
+    logeurln("");
+    logeur("Sending temp and humidity readings: ");
     int enweille = 0;
     if (usesenseurdallas == 1) {
       //dallas
@@ -826,42 +890,44 @@ void latemp() {
       float thetemp = sensors.getTempCByIndex(0);
       char buffer[10];
       String tempC = dtostrf(thetemp, 5, 2, buffer);
-      delay(400);
+      //      delay(400);
       if (tempC != "-127.00") {
         if (tempC != "85.00") {
-          Serial.print(tempC);
+          logeur(tempC);
           if (usesenseurdht == 1) {
-            Serial.print(" - ");
+            logeur(" - ");
           }
           webadd += "&field1=";
           webadd += tempC;
           enweille = 1;
           dernd = tempC;
         } else {
-          Serial.println("Erreure du senseur dallas 85 !");
+          logeurln("Dallas sensor error 85 !");
+          errdallas++;
           if (dernd != "0") {
             tempC = dernd;
             webadd += "&field1=";
             webadd += tempC;
             enweille = 1;
-            Serial.print(tempC);
+            logeur(tempC);
             if (usesenseurdht == 1) {
-              Serial.print(" - ");
+              logeur(" - ");
             }
           } else {
             enweille = 0;
           }
         }
       } else {
-        Serial.println("Erreure du senseur dallas -127 !");
+        logeurln("Dallas sensor error -127 !");
+        errdallas++;
         if (dernd != "0") {
           tempC = dernd;
           webadd += "&field1=";
           webadd += tempC;
           enweille = 1;
-          Serial.print(tempC);
+          logeur(tempC);
           if (usesenseurdht == 1) {
-            Serial.print(" - ");
+            logeur(" - ");
           }
         } else {
           enweille = 0;
@@ -874,19 +940,20 @@ void latemp() {
       float h = 0;
       int err = SimpleDHTErrSuccess;
       if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
-        Serial.println("");
-        Serial.print("Erreure de lecture DHT, err=");
-        Serial.println(err);
+        errdht++;
+        logeurln("");
+        logeur("DHT sensor error, err=");
+        logeurln(String(err));
         if (dernh != 0) {
           h = dernh;
           t = dernt;
           webadd += "&field2=";
           webadd += h;
-          Serial.print(h);
+          logeur(String(h));
           webadd += "&field3=";
           webadd += t;
-          Serial.print(" - ");
-          Serial.print(t);
+          logeur(" - ");
+          logeur(String(t));
           enweille = 1;
           dernt = t;
           dernh = h;
@@ -894,47 +961,49 @@ void latemp() {
       } else {
         webadd += "&field2=";
         webadd += h;
-        Serial.print(h);
+        String sortie;
+        sortie += h;
         webadd += "&field3=";
         webadd += t;
-        Serial.print(" - ");
-        Serial.print(t);
+        sortie += " - ";
+        sortie += t;
+        logeur(sortie);
         enweille = 1;
         dernt = t;
         dernh = h;
       }
     }
     if (enweille == 1) {
-      Serial.println("");
+      logeurln("");
       http.begin(webadd);
       int httpCode = http.GET();
       if (httpCode > 0) {
-        Serial.println("Envoit réussit !");
+        logeurln("Sending successfull !");
         tstrouteur = 0;
       } else {
         if (tstrouteur == 10) {
-          Serial.println("10 Erreur envoit ! REBOOT !");
+          logeurln("10 errors while sending ! REBOOT !");
           ESP.restart();
         } else {
-          Serial.println("!!! Erreur envoit !!!");
+          logeurln("!!! Error while sending !!!");
           tstrouteur++;
         }
       }
       http.end();   //Close connection
     } else {
-      Serial.println("Envois pas car erreur de senseurs !");
+      logeurln("Not sending due to sensors error !");
     }
   } else {
-    Serial.println("Pas de API KEY donc pas d'envoi");
+    logeurln("Not sending since there is no API key set !");
   }
 }
 
 // web page for showing sensors data
 void handleTemp() {
   String addy = server.client().remoteIP().toString();
-  Serial.println("");
-  Serial.println(addy);
-  Serial.println("Page température");
+  logeurln("");
+  logeurln(addy);
+  logeurln("Temperature page");
   float latemp;
   float t;
   float h;
@@ -948,26 +1017,28 @@ void handleTemp() {
       if (tempC != "85.00") {
         dernd = tempC;
       } else {
-        Serial.println("Erreure du senseur dallas 85 !");
+        errdallas++;
+        logeurln("Dallas sensor error 85 !");
         if (dernd != "0") {
           tempC = dernd;
         }
       }
     } else {
-      Serial.println("Erreure du senseur dallas -127 !");
+      logeurln("Dallas sensor error -127 !");
+      errdallas++;
       if (dernd != "0") {
         tempC = dernd;
       }
     }
-    delay(250);
   }
   if (usesenseurdht == 1) {
     t = 0;
     h = 0;
     int err = SimpleDHTErrSuccess;
     if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
-      Serial.print("Erreure de lecture DHT, err=");
-      Serial.println(err);
+      errdht++;
+      logeur("DHT sensor error, err=");
+      logeurln(String(err));
       t = dernt;
       h = dernh;
     }
@@ -1023,14 +1094,20 @@ void handleTemp() {
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
   if (usesenseurdallas == 1) {
-    Serial.print("Température : ");
-    Serial.println(latemp);
+    String sortie = "Temp : ";
+    sortie += latemp;
+    sortie += "C";
+    logeurln(sortie);
   }
   if (usesenseurdht == 1) {
-    Serial.print("Temp2 : ");
-    Serial.println(t);
-    Serial.print("Humidité : ");
-    Serial.println(h);
+    String sortie = "Temp2 : ";
+    sortie += t;
+    sortie += "C";
+    logeurln(sortie);
+    sortie = "Humidity : ";
+    sortie += h;
+    sortie += "%";
+    logeurln(sortie);
   }
   logtourne();
   logs[1] = addy;
@@ -1070,6 +1147,7 @@ void videCoeur() {
     logs[i] = "&hearts; vide";
   }
 }
+
 void lumiereloop() {
   unsigned long currentMillis = millis();
   if (flashoufade == 1) {
@@ -1109,15 +1187,16 @@ void loop1(void *pvParameters) {
   while (1) {
     if ( r != rouge || g != vert || b != bleu || flashoufade != 0 ) {
       lumiereloop();
-      vTaskDelay( 3 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+      vTaskDelay( 10 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     } else {
-      vTaskDelay( 50 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+      vTaskDelay( 100 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     }
   }
 }
 
 void setup() {
   Serial.begin(115200);
+  SerialBT.begin("lumiere"); //Bluetooth device name
   preferences.begin("lumiere", false);
   videCoeur();
   ledcAttachPin(pinRouge, 1);
@@ -1157,7 +1236,7 @@ void setup() {
     int marchetu = 1;
     do { // 5 retry
       ereur++;
-      Serial.print("Erreur senseur 0 essai #");
+      Serial.print("Sensor error try #");
       Serial.println(ereur);
       delay(200);
       if (sensors.getAddress(insideThermometer, 0)) {
@@ -1166,10 +1245,10 @@ void setup() {
       }
     } while (ereur < 5);
     if (marchetu != 0) {
-      Serial.println("Erreure senseurs 0 non fonctionnel !");
+      Serial.println("Error ! Sensor not working !");
     }
   }
-  sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin préçis
+  sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin prÃ©Ã§is
   MDNS.begin("lumiere");
   server.on("/", handleRoot);
   server.on("/setup", handleSetup);
@@ -1179,10 +1258,11 @@ void setup() {
   server.on("/logs", handleLog);
   server.on("/log", handlePitoune);
   server.on("/temp", handleTemp);
+  server.on("/debug", handleDebug);
   server.on("/party", handleClignote);
   server.on("/version", []() {
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V2.9, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V3.0, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -1216,25 +1296,54 @@ void setup() {
                 "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
                 "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br><br>"
                 "Moved fading to it's own core and loop<br>\n"
-                "Cleaned CSS and changed color selector to match buttons<br>\n" + liens);
-    Serial.println("");
-    Serial.println(addy);
-    Serial.println("Page de Version");
+                "Cleaned CSS and changed color selector to match buttons<br>\n\n"
+                "Added ArduinoOTA support for easy updates<br>\n" + liens);
+    logeurln("");
+    logeurln(addy);
+    logeurln("Version page");
     logtourne();
     logs[1] = addy;
     logs[1] += " : Page de version";
   });
   server.onNotFound(handleNotFound);
-  const char * headerkeys[] = {"User-Agent"} ;//peut ajouter autres si besoin eg {"User-Agent", "Cookie"}
+  const char * headerkeys[] = {"User-Agent", "Referer"} ;//peut ajouter autres si besoin eg {"User-Agent", "Cookie"}
   size_t headerkeyssize = sizeof(headerkeys) / sizeof(char*);
   server.collectHeaders(headerkeys, headerkeyssize );
   server.begin();
-  Serial.println("Serveur web démaré");
+  Serial.println("Web server started visit http://lumiere.local");
   MDNS.addService("_http", "_tcp", 80);
+  ArduinoOTA.setHostname("lumiere");
+  ArduinoOTA.setPasswordHash("password");
+  ArduinoOTA
+  .onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH)
+      type = "sketch";
+    else // U_SPIFFS
+      type = "filesystem";
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  })
+  .onEnd([]() {
+    Serial.println("\nEnd");
+  })
+  .onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  })
+  .onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  delay(100);
 }
 
 void loop() {
-  server.handleClient();
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
@@ -1249,4 +1358,8 @@ void loop() {
       latemp();
     }
   }
+  ArduinoOTA.handle();
+  vTaskDelay( 100 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+  server.handleClient();
 }
+
