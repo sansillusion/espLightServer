@@ -231,10 +231,10 @@ void logtourne() {
   }
 }
 
-// web page to handle flashing of leds (color/delay/number of flashes)
+// web page to handle logs ouput used by javascript on log page
 void handleLog() {
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    logeurln("no/bad password");
+    logeurln("log no/bad password");
     return server.requestAuthentication();
   }
   String addy = server.client().remoteIP().toString();
@@ -252,6 +252,7 @@ void handleLog() {
 
 // web page to handle flashing of leds (color/delay/number of flashes)
 void handleFlash() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
   String testteu = server.arg("COULEUR");
   String attend = server.arg("DELAIS");
@@ -259,16 +260,18 @@ void handleFlash() {
   String flashnombre = server.arg("FOIS");
   flashfois = flashnombre.toInt();
   flashfois = flashfois * 2;
-  logeurln("");
-  logeurln(addy);
-  logeurln("Flash");
-  logeurln(testteu);
-  String sortie = "Delay - ";
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "Flash\n";
+  sortie += testteu;
+  sortie += "\n";
+  sortie += "Delay - ";
   sortie += attend;
-  logeurln(sortie);
-  sortie = "Times - ";
+  sortie += "\n";
+  sortie += "Times - ";
   sortie += flashnombre;
-  logeurln(sortie);
+  sortie += "\n";
   if (attendF == 0) {
     flashfois = 0;
   }
@@ -282,15 +285,14 @@ void handleFlash() {
     preferences.putUInt("r", r);
     preferences.putUInt("g", g);
     preferences.putUInt("b", b);
-    sortie = "Red = ";
+    sortie += "Red = ";
     sortie += r;
-    logeurln(sortie);
-    sortie = "Green = ";
+    sortie += "\n";
+    sortie += "Green = ";
     sortie += g;
-    logeurln(sortie);
-    sortie = "Blue = ";
+    sortie += "\n";
+    sortie += "Blue = ";
     sortie += b;
-    logeurln(sortie);
     dernadd = addy;
     flashoufade = 1;
     flashrendu = 0;
@@ -318,14 +320,17 @@ void handleFlash() {
   logs[1] += " : Fois=";
   logs[1] += flashnombre;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  logeurln(sortie);
 }
 
 // web page for flash mode
 void handlePitoune() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
-  logeurln("Logs page");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "Logs page";
   logtourne();
   logs[1] = addy;
   logs[1] += " : Page logs";
@@ -355,9 +360,11 @@ void handlePitoune() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
+  logeurln(sortie);
 }
 
 void handleClignote() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere flash</title>\n"
@@ -413,24 +420,29 @@ void handleClignote() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  logeurln("");
-  logeurln(addy);
-  logeurln("Flashing page");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "Flashing page";
   logtourne();
   logs[1] = addy;
   logs[1] += " : Page Flash";
+  logeurln(sortie);
 }
 
 // web page to see # of sensor errors
 void handleDebug() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
-  logeurln("Debug");
-  logeur("#ErrDallas : ");
-  logeur(String(errdallas));
-  logeur(" - #ErrDht : ");
-  logeurln(String(errdht));
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "Debug";
+  sortie += "\n";
+  sortie += "#ErrDallas : ";
+  sortie += errdallas;
+  sortie += " - #ErrDht : ";
+  sortie += errdht;
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere Debug</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -455,15 +467,19 @@ void handleDebug() {
   logs[1] += " : ErrDHT=";
   logs[1] += errdht;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  logeurln(sortie);
 }
 
 // web page to handle leds fading
 void handleLeds() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
   String testteu = server.arg("COULEUR");
-  logeurln(testteu);
+  sortie += testteu;
+  sortie += "\n";
   if (testteu != 0) {
     derncoul = testteu;
     long number = strtol( &testteu[1], NULL, 16);
@@ -472,25 +488,25 @@ void handleLeds() {
     b = number & 0xFF;
     preferences.putString("derncoul", derncoul);
     if (r != rouge) {
-      String sortie = "Red = ";
+      sortie += "Red = ";
       sortie += r;
-      logeurln(sortie);
+      sortie += "\n";
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("r", r);
     }
     if (g != vert) {
-      String sortie = "Green = ";
+      sortie += "Green = ";
       sortie += g;
-      logeurln(sortie);
+      sortie += "\n";
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("g", g);
     }
     if (b != bleu) {
-      String sortie = "Blue = ";
+      sortie += "Blue = ";
       sortie += b;
-      logeurln(sortie);
+      sortie += "\n";
       dernadd = addy;
       flashoufade = 0;
       preferences.putUInt("b", b);
@@ -509,10 +525,12 @@ void handleLeds() {
   logs[1] += " : Fade : Couleur=";
   logs[1] += testteu;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  logeur(sortie);
 }
 
 // index page
 void handleRoot() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
   String header;
   String referer;
@@ -571,10 +589,13 @@ void handleRoot() {
              "</script>\n"
              "</div></body></html>\n";
   server.send(200, "text/html", contenu);
-  logeurln("");
-  logeurln(addy);
-  logeurln(referer);
-  logeurln("Home page");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += referer;
+  sortie += "\n";
+  sortie += "Home Page";
+  logeurln(sortie);
   logtourne();
   logs[1] = addy;
   logs[1] += " : Acceuil";
@@ -584,11 +605,14 @@ void handleRoot() {
 
 //reset page
 void handleReset() {
+  String sortie = "";
   int ouireset = 0;
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
-  logeurln("!!! RESET PAGE !!!");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "!!! RESET PAGE !!!";
+  sortie += "\n";
   String testteu = server.arg("RESET");
   String passme = server.arg("PASSMOI");
   logtourne();
@@ -597,7 +621,8 @@ void handleReset() {
   logs[1] += passme;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    logeurln("no/bad password");
+    sortie += "no/bad password";
+    sortie += "\n";
     return server.requestAuthentication();
   }
   if (testteu == "OUI") {
@@ -628,8 +653,9 @@ void handleReset() {
                "<h2>!!! MAUVAIS PASSWORD !!!</h2><br>\n"
                "<input type=\"submit\" class=\"button1\" value=\"Reset Wifi Network\">\n"
                "</form>\n";
-    logeur("BAD PASSWORD : ");
-    logeurln(passme);
+    sortie += "BAD PASSWORD : ";
+    sortie += passme;
+    sortie += "\n";
   } else if (ouireset == 1) {
     contenu += "<h1>Reset Dans 10 Secondes</h1>\n";
   }
@@ -639,6 +665,7 @@ void handleReset() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
+  logeur(sortie);
   if (ouireset == 1) {
     logeurln("Reset in 10 seconds");
     delay(10000);
@@ -652,16 +679,20 @@ void handleReset() {
 
 //setup page
 void handleSetup() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
-  logeurln("!!! SETUP PAGE !!!");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "!!! SETUP PAGE !!!";
+  sortie += "\n";
   logtourne();
   logs[1] = addy;
   logs[1] += " : Settings !";
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
   if (!server.authenticate(www_username, string2char(resetpass))) {
-    logeurln("no/bad password");
+    sortie += "no/bad password";
+    sortie += "\n";
     logs[1] += " Not logged in !";
     return server.requestAuthentication();
   }
@@ -693,39 +724,45 @@ void handleSetup() {
     }
   }
   if (ouireset == 1) {
-    logeurln("Settings changed");
+    sortie += "Settings changed";
+    sortie += "\n";
     if (noupass != resetpass) {
       preferences.putString("resetpass", noupass);
       resetpass = noupass;
-      logeur("NEW Password : ");
-      logeurln(resetpass);
+      sortie += "NEW Password : ";
+      sortie += resetpass;
+      sortie += "\n";
     }
     if (lakey != thingkey) {
       preferences.putString("thingkey", lakey);
       thingkey = lakey;
-      logeur("NEW API KEY : ");
-      logeurln(thingkey);
+      sortie += "NEW API Key : ";
+      sortie += thingkey;
+      sortie += "\n";
     }
     if (leusedallas != usesenseurdallas) {
       preferences.putUInt("usesenseurdal", leusedallas);
       usesenseurdallas = leusedallas;
       lesliens();
-      logeur("NEW dallas setting : ");
-      logeurln(String(usesenseurdallas));
+      sortie += "NEW dallas setting : ";
+      sortie += usesenseurdallas;
+      sortie += "\n";
     }
     if (leusedht != usesenseurdht) {
       preferences.putUInt("usesenseurdht", leusedht);
       usesenseurdht = leusedht;
       lesliens();
-      logeur("NEW dht setting : ");
-      logeurln(String(usesenseurdht));
+      sortie += "NEW dht setting : ";
+      sortie += usesenseurdht;
+      sortie += "\n";
     }
     if (lechan != thingchanel) {
       preferences.putString("thingchanel", lechan);
       thingchanel = lechan;
       lesliens();
-      logeur("NEW channel : ");
-      logeurln(thingchanel);
+      sortie += "NEW channel : ";
+      sortie += thingchanel;
+      sortie += "\n";
     }
   }
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
@@ -788,7 +825,8 @@ void handleSetup() {
                "<input type=\"submit\" class=\"button1\" value=\"Changer\">\n"
                "</form>\n";
     if (ouireset == 3) {
-      logeurln("EMPTY FIELD");
+      sortie += "EMPTY FIELD";
+      sortie += "\n";
     }
   } else if (ouireset == 1) {
     contenu += "<h1>R&eacute;glages chang&eacute;s !</h1>\n";
@@ -803,6 +841,7 @@ void handleSetup() {
   contenu += liens;
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
+  logeur(sortie);
 }
 
 // convert string 2 char*
@@ -815,17 +854,20 @@ char* string2char(String command) {
 
 // 404 not found page
 void handleNotFound() {
+  String sortie = "";
   String header;
   String addy = server.client().remoteIP().toString();
-  logeurln("");
+  sortie += "\n";
   String userAgent;
-  logeurln(addy);
+  sortie += addy;
+  sortie += "\n";
   if (server.hasHeader("User-Agent")) {
     userAgent = server.header("User-Agent");
   } else {
     userAgent = "Pas de userAgent ?";
   }
-  logeurln(userAgent);
+  sortie += userAgent;
+  sortie += "\n";
   String htmlmessage = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   htmlmessage += "<meta charset=\"UTF-8\" />\n<title>404 Not found</title>\n"
                  "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -862,7 +904,6 @@ void handleNotFound() {
     argsL += ": " + server.argName(i) + "=" + server.arg(i) + " ";
     message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
   }
-  logeur(message);
   logtourne();
   logs[1] = addy;
   logs[1] += " : 404 : URI=";
@@ -874,16 +915,19 @@ void handleNotFound() {
   logs[1] += " ";
   logs[1] += argsL;
   logs[1].replace("<", "</"); //prevent html tags in logs so hackers cant code in log page lol
+  sortie += message;
+  logeur(sortie);
 }
 
 // function executed in main loop every minute to update sensors data to thingspeak.com
 void latemp() {
+  String sortie = "";
   if (thingkey != "none") {
     HTTPClient http;
     String webadd = "http://api.thingspeak.com/update?key=";
     webadd += thingkey;
-    logeurln("");
-    logeur("Sending temp and humidity readings: ");
+    sortie += "\n";
+    sortie += "Sending temp and humidity readings: ";
     int enweille = 0;
     if (usesenseurdallas == 1) {
       //dallas
@@ -894,41 +938,43 @@ void latemp() {
       //      delay(400);
       if (tempC != "-127.00") {
         if (tempC != "85.00") {
-          logeur(tempC);
+          sortie += tempC;
           if (usesenseurdht == 1) {
-            logeur(" - ");
+            sortie += " - ";
           }
           webadd += "&field1=";
           webadd += tempC;
           enweille = 1;
           dernd = tempC;
         } else {
-          logeurln("Dallas sensor error 85 !");
+          sortie += "Dallas sensor error 85 !";
+          sortie += "\n";
           errdallas++;
           if (dernd != "0") {
             tempC = dernd;
             webadd += "&field1=";
             webadd += tempC;
             enweille = 1;
-            logeur(tempC);
+            sortie += tempC;
             if (usesenseurdht == 1) {
-              logeur(" - ");
+              sortie += " - ";
             }
           } else {
             enweille = 0;
           }
         }
       } else {
-        logeurln("Dallas sensor error -127 !");
+        sortie += "Dallas sensor error -127 !";
+        sortie += "\n";
         errdallas++;
         if (dernd != "0") {
           tempC = dernd;
           webadd += "&field1=";
           webadd += tempC;
           enweille = 1;
-          logeur(tempC);
+          sortie += tempC;
           if (usesenseurdht == 1) {
-            logeur(" - ");
+            sortie += " - ";
           }
         } else {
           enweille = 0;
@@ -942,19 +988,20 @@ void latemp() {
       int err = SimpleDHTErrSuccess;
       if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
         errdht++;
-        logeurln("");
-        logeur("DHT sensor error, err=");
-        logeurln(String(err));
+        sortie += "\n";
+        sortie += "DHT sensor error, err=";
+        sortie += err;
+        sortie += "\n";
         if (dernh != 0) {
           h = dernh;
           t = dernt;
           webadd += "&field2=";
           webadd += h;
-          logeur(String(h));
+          sortie += h;
           webadd += "&field3=";
           webadd += t;
-          logeur(" - ");
-          logeur(String(t));
+          sortie += " - ";
+          sortie += t;
           enweille = 1;
           dernt = t;
           dernh = h;
@@ -962,49 +1009,55 @@ void latemp() {
       } else {
         webadd += "&field2=";
         webadd += h;
-        String sortie;
         sortie += h;
         webadd += "&field3=";
         webadd += t;
         sortie += " - ";
         sortie += t;
-        logeur(sortie);
         enweille = 1;
         dernt = t;
         dernh = h;
       }
     }
     if (enweille == 1) {
-      logeurln("");
+      sortie += "\n";
       http.begin(webadd);
       int httpCode = http.GET();
       if (httpCode > 0) {
-        logeurln("Sending successfull !");
+        sortie += "Sending successfull !";
+        sortie += "\n";
         tstrouteur = 0;
       } else {
         if (tstrouteur == 10) {
           logeurln("10 errors while sending ! REBOOT !");
           ESP.restart();
         } else {
-          logeurln("!!! Error while sending !!!");
+          sortie += "!!! Error while sending !!!";
+          sortie += "\n";
           tstrouteur++;
         }
       }
       http.end();   //Close connection
     } else {
-      logeurln("Not sending due to sensors error !");
+      sortie += "Not sending due to sensors error !";
+      sortie += "\n";
     }
   } else {
-    logeurln("Not sending since there is no API key set !");
+    sortie += "Not sending since there is no API key set !";
+    sortie += "\n";
   }
+  logeur(sortie);
 }
 
 // web page for showing sensors data
 void handleTemp() {
+  String sortie = "";
   String addy = server.client().remoteIP().toString();
-  logeurln("");
-  logeurln(addy);
-  logeurln("Temperature page");
+  sortie += "\n";
+  sortie += addy;
+  sortie += "\n";
+  sortie += "Temperature page";
+  sortie += "\n";
   float latemp;
   float t;
   float h;
@@ -1019,13 +1072,15 @@ void handleTemp() {
         dernd = tempC;
       } else {
         errdallas++;
-        logeurln("Dallas sensor error 85 !");
+        sortie += "Dallas sensor error 85 !";
+        sortie += "\n";
         if (dernd != "0") {
           tempC = dernd;
         }
       }
     } else {
-      logeurln("Dallas sensor error -127 !");
+      sortie += "Dallas sensor error -127 !";
+      sortie += "\n";
       errdallas++;
       if (dernd != "0") {
         tempC = dernd;
@@ -1038,8 +1093,9 @@ void handleTemp() {
     int err = SimpleDHTErrSuccess;
     if ((err = dht22.read2(pinDHT22, &t, &h, NULL)) != SimpleDHTErrSuccess) {
       errdht++;
-      logeur("DHT sensor error, err=");
-      logeurln(String(err));
+      sortie += "DHT sensor error, err=";
+      sortie += err;
+      sortie += "\n";
       t = dernt;
       h = dernh;
     }
@@ -1095,20 +1151,20 @@ void handleTemp() {
   contenu += "\n<br></div></body></html>\n";
   server.send(200, "text/html", contenu);
   if (usesenseurdallas == 1) {
-    String sortie = "Temp : ";
+    sortie += "Temp : ";
     sortie += latemp;
     sortie += "C";
-    logeurln(sortie);
+    sortie += "\n";
   }
   if (usesenseurdht == 1) {
-    String sortie = "Temp2 : ";
+    sortie += "Temp2 : ";
     sortie += t;
     sortie += "C";
-    logeurln(sortie);
-    sortie = "Humidity : ";
+    sortie += "\n";
+    sortie += "Humidity : ";
     sortie += h;
     sortie += "%";
-    logeurln(sortie);
+    sortie += "\n";
   }
   logtourne();
   logs[1] = addy;
@@ -1122,6 +1178,7 @@ void handleTemp() {
     logs[1] += " : Temp2=";
     logs[1] += t;
   }
+  logeur(sortie);
 }
 
 int fadecomment(int claire) {
@@ -1191,6 +1248,16 @@ void loop1(void *pvParameters) {
       vTaskDelay( 10 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     } else {
       vTaskDelay( 100 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+    }
+  }
+}
+
+void ladentbleu() {
+  while (SerialBT.available()) {
+    vTaskDelay( 10 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+    if (SerialBT.available() > 0) {
+      char c = SerialBT.read();
+      readString += c;
     }
   }
 }
@@ -1289,8 +1356,9 @@ void setup() {
   server.on("/debug", handleDebug);
   server.on("/party", handleClignote);
   server.on("/version", []() {
+    String sortie = "";
     String addy = server.client().remoteIP().toString();
-    server.send(200, "text/html", "V3.0, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
+    server.send(200, "text/html", "V3.2, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
                 "Added smoother fading\n\n<br><br>"
@@ -1323,15 +1391,20 @@ void setup() {
                 "Revamped /temp and lesliens() to accomodate new changes in setup\n\n<br><br>"
                 "Added User-Agernt information in logging and serial output of / and 404 not found page\n<br>"
                 "Fixed Bonjour service support you can now use ( <a href=\"http://lumiere.local\">http://lumiere.local</a> ) if you have Bonjour V3 installed\n<br><br>"
-                "Moved fading to it's own core and loop<br>\n"
-                "Cleaned CSS and changed color selector to match buttons<br>\n\n"
-                "Added ArduinoOTA support for easy updates<br>\n" + liens);
-    logeurln("");
-    logeurln(addy);
-    logeurln("Version page");
+                "Moved fading to it's own core and loop<br><br>\n"
+                "Cleaned CSS and changed color selector to match buttons<br><br>\n\n"
+                "Added ArduinoOTA support for easy updates<br><br>\n\n"
+                "Added Bluetooth Serial logging and color control<br>\n\n"
+                "<br>\n" + liens);
+    sortie += "\n";
+    sortie += addy;
+    sortie += "\n";
+    sortie += "Version page";
+    sortie += "\n";
     logtourne();
     logs[1] = addy;
     logs[1] += " : Page de version";
+    logeur(sortie);
   });
   server.onNotFound(handleNotFound);
   const char * headerkeys[] = {"User-Agent", "Referer"} ;//peut ajouter autres si besoin eg {"User-Agent", "Cookie"}
@@ -1344,25 +1417,14 @@ void setup() {
   delay(100);
 }
 
-void ladentbleu() {
-  while (SerialBT.available()) {
-    delay(10);
-    if (SerialBT.available() > 0) {
-      char c = SerialBT.read();
-      readString += c;
-    }
-  }
-}
-
 void loop() {
   if (SerialBT.available()) {
+    String sortie = "";
     readString = "";
     ladentbleu();
     String lacmd = readString.substring(0, 1);
     if (lacmd == "#") {
       String execca = readString.substring(0, 7);
-
-
       if (execca != 0) {
         derncoul = execca;
         long number = strtol( &execca[1], NULL, 16);
@@ -1371,33 +1433,32 @@ void loop() {
         b = number & 0xFF;
         preferences.putString("derncoul", derncoul);
         if (r != rouge) {
-          String sortie = "Red = ";
+          sortie += "Red = ";
           sortie += r;
-          logeurln(sortie);
+          sortie += "\n";
           dernadd = "BT";
           flashoufade = 0;
           preferences.putUInt("r", r);
         }
         if (g != vert) {
-          String sortie = "Green = ";
+          sortie += "Green = ";
           sortie += g;
-          logeurln(sortie);
+          sortie += "\n";
           dernadd = "BT";
           flashoufade = 0;
           preferences.putUInt("g", g);
         }
         if (b != bleu) {
-          String sortie = "Blue = ";
+          sortie += "Blue = ";
           sortie += b;
-          logeurln(sortie);
+          sortie += "\n";
           dernadd = "BT";
           flashoufade = 0;
           preferences.putUInt("b", b);
         }
       }
-
-
     }
+    logeur(sortie);
   }
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
@@ -1416,4 +1477,3 @@ void loop() {
   server.handleClient();
   ArduinoOTA.handle();
 }
-
