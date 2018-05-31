@@ -9,7 +9,7 @@
 #include <Preferences.h>
 #include <ArduinoOTA.h>
 #include "BluetoothSerial.h"
-
+#define HTTP_MAX_CLOSE_WAIT 0
 Preferences preferences;
 
 BluetoothSerial SerialBT;
@@ -1290,15 +1290,17 @@ void setup() {
   thingchanel = preferences.getString("thingchanel", "none");
   xTaskCreatePinnedToCore(loop1, "loop1", 2048, NULL, 0, NULL, 0);
   lesliens();
+  delay(5000);
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
-  WiFi.disconnect(); // pour prevenir de bugs de power et autres
+  //WiFi.disconnect(); // pour prevenir de bugs de power et autres
   delay(1000);
   if (!wifiManager.autoConnect()) {
     delay(3000);
     ESP.restart();
     delay(5000);
   }
+  delay(5000);
   if (!sensors.getAddress(insideThermometer, 0)) {
     int ereur = 0;
     int marchetu = 1;
@@ -1319,7 +1321,7 @@ void setup() {
   sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin prÃ©Ã§is
   MDNS.begin("lumiere");
   ArduinoOTA.setHostname("lumiere");
-  ArduinoOTA.setPasswordHash("password");
+  ArduinoOTA.setPasswordHash("otapassword");
   ArduinoOTA
   .onStart([]() {
     String type;
