@@ -9,9 +9,10 @@
 #include <Preferences.h>
 #include <ArduinoOTA.h>
 #include "BluetoothSerial.h"
-#define HTTP_MAX_CLOSE_WAIT 0
-Preferences preferences;
+#include <rom/rtc.h>
 
+#define HTTP_MAX_CLOSE_WAIT 10
+Preferences preferences;
 BluetoothSerial SerialBT;
 
 // led pins
@@ -37,7 +38,7 @@ DeviceAddress insideThermometer;
 const long interval = 60000; // interval in ms for sending temperature data to thingspeak
 const char* www_username = "admin";
 String dernadd = "Fraichement boot&eacute;"; //variable for ip logging (you can put your fresh boot mesage here in text/html)
-String resetpass = "";
+String resetpass = "admin";
 String thingkey = "";
 String thingchanel = "";
 String liens = "";
@@ -71,8 +72,52 @@ int usesenseurdallas = 0;
 int usesenseurdht = 0;
 int errdallas = 0;
 int errdht = 0;
-String readString = "";
+String btreadString = "";
+String bootString = "";
+String bootStringa = "";
+String bootStringb = "";
+String bootip = "";
+
 // end of internally used vars
+
+
+
+void reboot_ip(String leip, String ledoing){
+  bootip = leip;
+  bootip += " fesait : <br>";
+  bootip = ledoing;
+  preferences.putString("bootip", bootip);
+}
+
+void print_reset_reason(RESET_REASON reason)
+{
+  switch ( reason)
+  {
+    case 1 : bootString = "POWERON_RESET";break;          /**<1, Vbat power on reset*/
+    case 3 : bootString = "SW_RESET";break;               /**<3, Software reset digital core*/
+    case 4 : bootString = "OWDT_RESET";break;             /**<4, Legacy watch dog reset digital core*/
+    case 5 : bootString = "DEEPSLEEP_RESET";break;        /**<5, Deep Sleep reset digital core*/
+    case 6 : bootString = "SDIO_RESET";break;             /**<6, Reset by SLC module, reset digital core*/
+    case 7 : bootString = "TG0WDT_SYS_RESET";break;       /**<7, Timer Group0 Watch dog reset digital core*/
+    case 8 : bootString = "TG1WDT_SYS_RESET";break;       /**<8, Timer Group1 Watch dog reset digital core*/
+    case 9 : bootString = "RTCWDT_SYS_RESET";break;       /**<9, RTC Watch dog Reset digital core*/
+    case 10 : bootString = "INTRUSION_RESET";break;       /**<10, Instrusion tested to reset CPU*/
+    case 11 : bootString = "TGWDT_CPU_RESET";break;       /**<11, Time Group reset CPU*/
+    case 12 : bootString = "SW_CPU_RESET";break;          /**<12, Software reset CPU*/
+    case 13 : bootString = "RTCWDT_CPU_RESET";break;      /**<13, RTC Watch dog Reset CPU*/
+    case 14 : bootString = "EXT_CPU_RESET";break;         /**<14, for APP CPU, reseted by PRO CPU*/
+    case 15 : bootString = "RTCWDT_BROWN_OUT_RESET";break;/**<15, Reset when the vdd voltage is not stable*/
+    case 16 : bootString = "RTCWDT_RTC_RESET";break;      /**<16, RTC Watch dog reset digital core and rtc module*/
+    default : bootString = "NO_MEAN";
+  }
+}
+
+
+
+
+
+
+
 
 // stylesheet for web pages
 const String css = "<style>\n"
@@ -238,6 +283,7 @@ void handleLog() {
     return server.requestAuthentication();
   }
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Logs");
   String contenu = "";
   for (int i = 1; i < 51; i++) {
     if (logs[i] != "&hearts; vide") {
@@ -254,6 +300,7 @@ void handleLog() {
 void handleFlash() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Flash");
   String testteu = server.arg("COULEUR");
   String attend = server.arg("DELAIS");
   attendF = attend.toInt();
@@ -327,6 +374,7 @@ void handleFlash() {
 void handlePitoune() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "PageLog");
   sortie += "\n";
   sortie += addy;
   sortie += "\n";
@@ -366,6 +414,7 @@ void handlePitoune() {
 void handleClignote() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "PageFlash");
   String contenu = "<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\" class=\"client-nojs\">\n<head>\n";
   contenu += "<meta charset=\"UTF-8\" />\n<title>Que la lumiere flash</title>\n"
              "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
@@ -434,6 +483,7 @@ void handleClignote() {
 void handleDebug() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Debug");
   sortie += "\n";
   sortie += addy;
   sortie += "\n";
@@ -474,6 +524,7 @@ void handleDebug() {
 void handleLeds() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Couleur");
   sortie += "\n";
   sortie += addy;
   sortie += "\n";
@@ -532,6 +583,7 @@ void handleLeds() {
 void handleRoot() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Home");
   String header;
   String referer;
   if (server.hasHeader("Referer")) {
@@ -608,6 +660,7 @@ void handleReset() {
   String sortie = "";
   int ouireset = 0;
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Reset");
   sortie += "\n";
   sortie += addy;
   sortie += "\n";
@@ -696,6 +749,7 @@ void handleSetup() {
     logs[1] += " Not logged in !";
     return server.requestAuthentication();
   }
+  reboot_ip(addy, "Setup");
   int ouireset = 0;
   String testteu = server.arg("RESET");
   String noupass = server.arg("LAPASSE");
@@ -803,7 +857,7 @@ void handleSetup() {
     if (ouireset == 3) {
       contenu += "<h2>!!! LES CHAMPS NE PEUVENT PAS &Ecirc;TRE VIDE !!!</h2><br>\n";
     }
-    "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
+    contenu += "Password :<br>\n<input type=\"password\" name=\"LAPASSE\" value=\"";
     contenu += resetpass;
     contenu += "\"><br>\n"
                "<br>\n<input type=\"checkbox\" name=\"LEDALLAS\" value=\"usedallas\" ";
@@ -849,6 +903,8 @@ char* string2char(String command) {
   if (command.length() != 0) {
     char *p = const_cast<char*>(command.c_str());
     return p;
+  }else{
+    return 0;
   }
 }
 
@@ -893,6 +949,7 @@ void handleNotFound() {
   message += "URI: ";
   String uriL = server.uri();
   message += uriL;
+  reboot_ip(addy, uriL);
   message += "\nMethod: ";
   String methodeL = (server.method() == HTTP_GET) ? "GET" : "POST";
   message += methodeL;
@@ -921,6 +978,7 @@ void handleNotFound() {
 
 // function executed in main loop every minute to update sensors data to thingspeak.com
 void latemp() {
+  reboot_ip("Internal", "TempSend");
   String sortie = "";
   if (thingkey != "none") {
     HTTPClient http;
@@ -931,6 +989,8 @@ void latemp() {
     int enweille = 0;
     if (usesenseurdallas == 1) {
       //dallas
+      sensors.requestTemperatures();
+      delay(10);
       sensors.requestTemperatures();
       float thetemp = sensors.getTempCByIndex(0);
       char buffer[10];
@@ -1053,16 +1113,19 @@ void latemp() {
 void handleTemp() {
   String sortie = "";
   String addy = server.client().remoteIP().toString();
+  reboot_ip(addy, "Temp");
   sortie += "\n";
   sortie += addy;
   sortie += "\n";
   sortie += "Temperature page";
   sortie += "\n";
-  float latemp;
-  float t;
-  float h;
+  float latemp = 0;
+  float t = 0;
+  float h = 0;
   String tempC;
   if (usesenseurdallas == 1) {
+    //sensors.requestTemperatures();
+    //delay(10);
     sensors.requestTemperatures();
     latemp = sensors.getTempCByIndex(0);
     char buffer[10];
@@ -1254,17 +1317,21 @@ void loop1(void *pvParameters) {
 
 void ladentbleu() {
   while (SerialBT.available()) {
-    vTaskDelay( 10 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
+    vTaskDelay( 60 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
     if (SerialBT.available() > 0) {
       char c = SerialBT.read();
-      readString += c;
+      btreadString += c;
     }
   }
 }
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   SerialBT.begin("lumiere"); //Bluetooth device name
+  print_reset_reason(rtc_get_reset_reason(0));
+  bootStringa = bootString;
+  print_reset_reason(rtc_get_reset_reason(1));
+  bootStringb = bootString;
   preferences.begin("lumiere", false);
   videCoeur();
   ledcAttachPin(pinRouge, 1);
@@ -1288,9 +1355,9 @@ void setup() {
   resetpass = preferences.getString("resetpass", "admin");
   thingkey = preferences.getString("thingkey", "none");
   thingchanel = preferences.getString("thingchanel", "none");
-  xTaskCreatePinnedToCore(loop1, "loop1", 2048, NULL, 0, NULL, 0);
+  xTaskCreatePinnedToCore(loop1, "loop1", 1024, NULL, 0, NULL, 0);
   lesliens();
-  delay(5000);
+  delay(500);
   WiFiManager wifiManager;
   wifiManager.setTimeout(240);
   //WiFi.disconnect(); // pour prevenir de bugs de power et autres
@@ -1300,7 +1367,7 @@ void setup() {
     ESP.restart();
     delay(5000);
   }
-  delay(5000);
+  delay(500);
   if (!sensors.getAddress(insideThermometer, 0)) {
     int ereur = 0;
     int marchetu = 1;
@@ -1315,13 +1382,13 @@ void setup() {
       }
     } while (ereur < 5);
     if (marchetu != 0) {
+      dernadd = "Erreur de senseur !";
       Serial.println("Error ! Sensor not working !");
     }
   }
   sensors.setResolution(insideThermometer, 12);// 9 ou 12 9 plus rapide mais moin prÃ©Ã§is
   MDNS.begin("lumiere");
   ArduinoOTA.setHostname("lumiere");
-  ArduinoOTA.setPasswordHash("otapassword");
   ArduinoOTA
   .onStart([]() {
     String type;
@@ -1360,6 +1427,7 @@ void setup() {
   server.on("/version", []() {
     String sortie = "";
     String addy = server.client().remoteIP().toString();
+    reboot_ip(addy, "Version");
     server.send(200, "text/html", "V3.2, Steve Olmstead sansillusion@gmail.com\n\n<br><br>"
                 "Added fader function\nRemoved connection watchdog (better have good signal)\n<br>"
                 "Removed mDns (did not work anyway)\n\n<br><br>"
@@ -1417,16 +1485,22 @@ void setup() {
   MDNS.addService("_http", "_tcp", 80);
   ArduinoOTA.begin();
   delay(100);
+  bootip = preferences.getString("bootip", "");
+  dernadd = bootStringa;
+  dernadd += " - ";
+  dernadd += bootStringb;
+  dernadd += "<br>";
+  dernadd += bootip;
 }
 
 void loop() {
   if (SerialBT.available()) {
     String sortie = "";
-    readString = "";
+    btreadString = "";
     ladentbleu();
-    String lacmd = readString.substring(0, 1);
+    String lacmd = btreadString.substring(0, 1);
     if (lacmd == "#") {
-      String execca = readString.substring(0, 7);
+      String execca = btreadString.substring(0, 7);
       if (execca != 0) {
         derncoul = execca;
         long number = strtol( &execca[1], NULL, 16);
@@ -1477,5 +1551,6 @@ void loop() {
     }
   }
   server.handleClient();
+  vTaskDelay( 60 / portTICK_PERIOD_MS ); // wait / yield time to other tasks
   ArduinoOTA.handle();
 }
